@@ -352,9 +352,8 @@ static int endeavor_s5k6a1gx03_power_off(void)
 }
 
 struct s5k6a1gx03_platform_data endeavor_s5k6a1gx03_data = {
-	.sensor_name = "s5k6a1gx03",
-//	.data_lane = 1,
-	.data_lane = 2,
+	.sensor_name = "s5k6a2gx",
+	.data_lane = 1,
 	.csi_if = 1,
 	.power_on = endeavor_s5k6a1gx03_power_on,
 	.power_off = endeavor_s5k6a1gx03_power_off,
