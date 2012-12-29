@@ -250,11 +250,11 @@ struct s5k3h2yx_platform_data endeavor_s5k3h2yx_data = {
 };
 
 struct ad5823_platform_data endeavor_ad5823_data = {
-//	.focal_length = 3.03f,
-//	.fnumber = 2.0f,
-//	.pos_low = 96,
-//	.pos_high = 496,
-//	.settle_time = 55,
+	.focal_length = 3.03f,
+	.fnumber = 2.0f,
+	.pos_low = 96,
+	.pos_high = 496,
+	.settle_time = 55,
 	.get_power_state = endeavor_s5k3h2y_get_power,
 	.set_gsensor_mode = GSensor_set_mode,
 	.get_gsensor_data = GSensorReadData,
