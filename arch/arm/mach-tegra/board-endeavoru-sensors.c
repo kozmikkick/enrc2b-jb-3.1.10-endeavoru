@@ -72,13 +72,8 @@
 #define CAMERA_REGULATOR
 #define SENSOR_MPU_NAME "mpu3050"
 
-int cm3629_enable_power(int enable)
-{
-	tegra_gpio_enable(TEGRA_GPIO_PM3);
-}
-
 static struct cm3628_platform_data cm3628_pdata = {
-	.pwr = 0,
+	.pwr = NULL,
 	.intr = TEGRA_GPIO_PK2,
 	.levels = { 12, 14, 16, 41, 83, 3561, 6082, 6625, 7168, 65535},
 	.golden_adc = 0x1145,
@@ -91,7 +86,7 @@ static struct cm3628_platform_data cm3628_pdata = {
 	.ps_conf2_val = 0,
 	.ps_calibration_rule = 1,
 	.ps_reset_thd = 1,
-	.ps_conf1_val = CM3628_PS_DR_1_80 | CM3628_PS_IT_2T |
+	.ps_conf1_val = CM3628_PS_DR_1_320 | CM3628_PS_IT_1_3T |
 			CM3628_PS_PERS_4,
 	.ps_thd_no_cal = 0x10,
 	.ps_thd_with_cal = 0x4,
@@ -102,18 +97,19 @@ static struct cm3629_platform_data cm3629_pdata = {
 	.ps_select = CM3629_PS1_ONLY,
 	.intr = TEGRA_GPIO_PK2,
 	.levels = { 12, 14, 16, 176, 361, 4169, 6891, 9662, 12433, 65535},
-	.golden_adc = 0x13EF,
-	.power = cm3629_enable_power,
+	.golden_adc = 0x13AA,
+	.power = NULL,
 	.cm3629_slave_address = 0xC0>>1,
 	.ps_calibration_rule = 1,
 	.ps1_thd_set = 0x3,
 	.ps1_thd_no_cal = 0x3,
 	.ps1_thd_with_cal = 0x3,
-	.ps_conf1_val = CM3629_PS_DR_1_80 | CM3629_PS_IT_2T |
+	.ps_conf1_val = CM3629_PS_DR_1_320 | CM3629_PS_IT_1_3T |
 			CM3629_PS1_PERS_4,
 	.ps_conf2_val = CM3629_PS_ITB_1 | CM3629_PS_ITR_1 |
 			CM3629_PS2_INT_DIS | CM3629_PS1_INT_DIS,
 	.ps_conf3_val = CM3629_PS2_PROL_32,
+	.dark_level = 3,
 };
 
 static struct i2c_board_info i2c_CM3628_devices[] = {
