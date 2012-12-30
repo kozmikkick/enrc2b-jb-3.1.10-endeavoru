@@ -63,8 +63,11 @@ void bt_export_bd_address(void)
 
 module_param_string(bdaddress, bdaddress, sizeof(bdaddress), S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(bdaddress, "BT MAC ADDRESS");
-
+#ifdef CONFIG_MACH_ENDEAVORU
+static char bt_chip_id[10] = "BCM4329";
+#else
 static char bt_chip_id[10] = "BCM4334";
+#endif
 module_param_string(bt_chip_id, bt_chip_id, sizeof(bt_chip_id), S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(bt_chip_id, "BT's chip id");
 
