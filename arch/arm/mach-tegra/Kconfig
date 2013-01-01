@@ -222,11 +222,6 @@ config HTC_PROJECT
        help
          HTC Project
 
-config TRIPNDROID_CAM_FIX
-       bool "TripNDroid camera fix"
-       help
-         Select this to patch camera drivers from ENRC2B for Endeavoru
-
 config MACH_ENDEAVORU
        bool "ENDEAVORU board"
        depends on ARCH_TEGRA_3x_SOC

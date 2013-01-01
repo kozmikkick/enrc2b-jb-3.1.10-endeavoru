@@ -32,6 +32,7 @@
 
 #define SIZEOF_I2C_TRANSBUF 32
 
+
 #if 0
 #include <mach/atmega_microp.h>
 #endif
@@ -83,11 +84,7 @@ static u16 group_hold_reg;
 #define s5k6a2_REG_GROUP_HOLD 0x3E90
 
 /* HTC_START */
-#ifdef CONFIG_TRIPNDROID_CAM_FIX
-static bool_t sensor_source = SENSOR_S5K6A1; /* set s5k6a1 as default */
-#else
 static bool_t sensor_source = SENSOR_S5K6A2; /* set s5k6a2 as default */
-#endif
 static int sensor_probe_node = 0;
 static bool clock_init_done = 0;
 /* HTC_END */
@@ -451,7 +448,6 @@ retry:
 	return rc;
 }
 
-#ifndef CONFIG_TRIPNDROID_CAM_FIX
 static int32_t s5k6a1gx03_i2c_read_simple(unsigned short raddr,
 				unsigned short *rdata, int rlen)
 {
@@ -481,7 +477,6 @@ retry:
 	*rdata = (rlen == 2 ? buf[0] << 8 | buf[1] : buf[0]);
 	return rc;
 }
-#endif
 
 static int s5k6a1gx03_check_sensorid(void)
 {
@@ -497,17 +492,11 @@ static int s5k6a1gx03_check_sensorid(void)
 	}
 
 	/* Compare sensor ID to s5k6a1gx03 ID: */
-#ifndef CONFIG_TRIPNDROID_CAM_FIX
 	except_id = (sensor_source == SENSOR_S5K6A1 ? s5k6a1gx03_MODEL_ID : s5k6a2_MODEL_ID);
-#endif
 	pr_debug("[CAM]%s, Expected id=0x%x\n", __func__, except_id);
 	pr_debug("[CAM]%s, Read id=0x%x\n", __func__, chipid);
 
-#ifdef CONFIG_TRIPNDROID_CAM_FIX
-	if (chipid != s5k6a1gx03_MODEL_ID) {
-#else
 	if (chipid != except_id) {
-#endif
 		pr_err("[CAM]sensor model id is incorrect\n");
 		rc = -ENODEV;
 	}
@@ -673,7 +662,7 @@ retry:
 
 	if ( info->pdata->use_rawchip ) {
 		/* do rawchip setting before sensor setting */
-		pr_info("[CAM] s5k6a1gx03: call rawchip_set_size(%d) +++", sensor_mode);
+		pr_info("[CAM] call rawchip_set_size(%d) +++", sensor_mode);
 
 		emc_clk = tegra_get_clock_by_name("camera.emc");
 		if (IS_ERR_OR_NULL(emc_clk)) {
@@ -1170,9 +1159,7 @@ static int s5k6a1g_sysfs_init(void)
 
 static int check_sensor_module(void)
 {
-#ifndef CONFIG_TRIPNDROID_CAM_FIX
 	uint16_t chipid = 0;
-#endif
 	int32_t rc = 0;
 	struct clk *csus_clk = NULL;
 	struct clk *sensor_clk = NULL;
@@ -1196,7 +1183,6 @@ static int check_sensor_module(void)
 		pr_err("[CAM] %s: power_on is NULL\n", __func__);
 		goto fail_1;
 	}
-#ifndef CONFIG_TRIPNDROID_CAM_FIX
 	info->pdata->power_on();
 
 	/* Read sensor Model ID: */
@@ -1207,12 +1193,10 @@ static int check_sensor_module(void)
 	}
 
 	if (chipid == s5k6a1gx03_MODEL_ID) {
-#endif
 		sensor_source = SENSOR_S5K6A1;
 		coarse_time_reg = s5k6a1gx03_REG_COARSE_TIME;
 		group_hold_reg = s5k6a1gx03_REG_GROUP_HOLD;
 		pr_info("[CAM] %s: front camera uses s5k6a1\n", __func__);
-#ifndef CONFIG_TRIPNDROID_CAM_FIX
 	} else if (chipid == s5k6a2_MODEL_ID) {
 		coarse_time_reg = s5k6a2_REG_COARSE_TIME;
 		group_hold_reg = s5k6a2_REG_GROUP_HOLD;
@@ -1222,16 +1206,12 @@ static int check_sensor_module(void)
 		pr_err("[CAM] sensor id is wrong (%x)\n", chipid);
 		goto fail_1;
 	}
-#endif
 
 	if (info->pdata->power_off == NULL) {
 		pr_err("[CAM] %s: power_off is NULL\n", __func__);
 		goto fail_1;
 	}
-
-#ifndef CONFIG_TRIPNDROID_CAM_FIX
 	info->pdata->power_off();
-#endif
 
 	/* disable main clock */
 	clk_disable(csus_clk);
@@ -1285,9 +1265,7 @@ s5k6a1gx03_set_mode_handler_error:
 static int s5k6a1gx03_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	int err;
-	int retry;
-
+	int err, retry;
 	pr_info("[CAM] %s: probing sensor.\n", __func__);
 
 	if (!info) {
