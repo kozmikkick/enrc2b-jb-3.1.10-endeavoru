@@ -533,13 +533,13 @@ static struct spi_board_info spi_board_info_audio[] __initdata = {
 	},
 };
 
-//static struct htc_asoc_platform_data enterprise_audio_pdata;
+static struct htc_asoc_platform_data enterprise_audio_pdata;
 
 static struct platform_device enterprise_audio_device = {
 	.name	= "tegra-snd-aic3008",
 	.id	= 0,
 	.dev	= {
-		.platform_data  = NULL,
+		.platform_data  = &enterprise_audio_pdata,
 	},
 };
 
@@ -1482,7 +1482,7 @@ static struct platform_device *enterprise_audio_devices[] __initdata = {
 
 static void enterprise_audio_init(void)
 {
-//	enterprise_audio_codec_init(&enterprise_audio_pdata);
+	enterprise_audio_codec_init(&enterprise_audio_pdata);
 
 	platform_add_devices(enterprise_audio_devices,
 			ARRAY_SIZE(enterprise_audio_devices));

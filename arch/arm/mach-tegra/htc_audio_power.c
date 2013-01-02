@@ -1,9 +1,3 @@
-#include <linux/kernel.h>
-#include <linux/delay.h>
-#include <linux/err.h>
-#include <linux/gpio.h>
-#include "gpio-names.h"
-#include <linux/regulator/consumer.h>
 #include "htc_audio_power.h"
 
 static struct regulator *audio_regulator = NULL;
@@ -32,32 +26,72 @@ void power_config(const char *name, int pin, int method)
 		ret = regulator_enable(audio_regulator);
 		if (ret < 0) {
 			AUD_ERR("[PWR] couldn't enable regulator %s, pin = %d, ret = %d.\n", name, pin, ret);
+			return;
 		}
 
 		AUD_INFO("[PWR] ***** regulator %s %d enable *****\n", name, pin);
 		break;
 	case GPIO_OUTPUT:
-		gpio_direction_output(pin, 1);
+		ret = gpio_direction_output(pin, 1);
+		if (ret < 0) {
+			AUD_ERR("[PWR] gpio_direction_output gpio %s failed, pin = %d, ret = %d.\n", name, pin, ret);
+			return;
+		}
+
 		tegra_gpio_enable(pin);
 		gpio_set_value(pin, 1);
+
 		AUD_INFO("[PWR] ***** gpio %s %d output enable *****\n", name, pin);
 		break;
 	case GPIO_INPUT:
-		gpio_direction_input(pin);
+		ret = gpio_direction_input(pin);
+		if (ret < 0) {
+			AUD_ERR("[PWR] gpio_direction_input gpio %s failed, pin = %d, ret = %d.\n", name, pin, ret);
+			return;
+		}
+
 		tegra_gpio_enable(pin);
+
 		AUD_INFO("[PWR] ***** gpio %s %d input enable *****\n", name, pin);
 		break;
 	case INIT_OUTPUT_LOW:
-		gpio_request(pin, name);
-		gpio_direction_output(pin, 0);
+		ret = gpio_request(pin, name);
+		if (ret < 0) {
+			AUD_ERR("[PWR] gpio_request gpio %s failed, pin = %d, ret = %d.\n", name, pin, ret);
+			return;
+		}
+
+		ret = gpio_direction_output(pin, 0);
+		if (ret < 0) {
+			AUD_ERR("[PWR] gpio_direction_output gpio %s failed, pin = %d, ret = %d.\n", name, pin, ret);
+			return;
+		}
 		break;
 	case INIT_OUTPUT_HIGH:
-		gpio_request(pin, name);
-		gpio_direction_output(pin, 1);
+		ret = gpio_request(pin, name);
+		if (ret < 0) {
+			AUD_ERR("[PWR] gpio_request gpio %s failed, pin = %d, ret = %d.\n", name, pin, ret);
+			return;
+		}
+
+		ret = gpio_direction_output(pin, 1);
+		if (ret < 0) {
+			AUD_ERR("[PWR] gpio_direction_output gpio %s failed, pin = %d, ret = %d.\n", name, pin, ret);
+			return;
+		}
 		break;
 	case INIT_INPUT:
-		gpio_request(pin, name);
-		gpio_direction_input(pin);
+		ret = gpio_request(pin, name);
+		if (ret < 0) {
+			AUD_ERR("[PWR] gpio_request gpio %s failed, pin = %d, ret = %d.\n", name, pin, ret);
+			return;
+		}
+
+		ret = gpio_direction_input(pin);
+		if (ret < 0) {
+			AUD_ERR("[PWR] gpio_direction_input gpio %s failed, pin = %d, ret = %d.\n", name, pin, ret);
+			return;
+		}
 		break;
 	default:
 		AUD_ERR("[PWR] ***** power_configure nothing *****\n");

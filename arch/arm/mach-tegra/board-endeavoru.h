@@ -54,7 +54,7 @@ int enterprise_regulator_init(void);
 int enterprise_suspend_init(void);
 int enterprise_edp_init(void);
 void enterprise_bpc_mgmt_init(void);
-//int enterprise_audio_codec_init(struct htc_asoc_platform_data *);
+int enterprise_audio_codec_init(struct htc_asoc_platform_data *);
 
 /* Invensense MPU Definitions */
 #define MPU_TYPE_MPU3050	1
