@@ -609,7 +609,7 @@ static int __init enterprise_ina230_init(void)
 
 int __init enterprise_sensors_init(void)
 {
-	int ret;
+	int ret = 0;
 	psensor_init();
 
 	enterprise_comp_irq_init();
