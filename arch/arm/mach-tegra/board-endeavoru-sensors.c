@@ -68,8 +68,6 @@
 #include "board-endeavoru.h"
 #include "board.h"
 
-#define RAWCHIP 1
-#define CAMERA_REGULATOR
 #define SENSOR_MPU_NAME "mpu3050"
 
 static struct cm3628_platform_data cm3628_pdata = {
@@ -258,7 +256,7 @@ static struct pana_gyro_platform_data pana_gyro_pdata = {
 	.acc_dir = 0x06,
 	.acc_polarity = 0x07,
 	.gyro_dir = 0x06,
-	.gyro_polarity = 0x07,
+	.gyro_polarity = 0x02,
 	.mag_dir = 0x06,
 	.mag_polarity = 0x07,
 	.sleep_pin = TEGRA_GPIO_PR2,
@@ -267,7 +265,7 @@ static struct pana_gyro_platform_data pana_gyro_pdata = {
 
 static struct i2c_board_info __initdata pana_gyro_GSBI12_boardinfo[] = {
 	{
-		I2C_BOARD_INFO("ewtzmu2", 0x69 >> 0),
+		I2C_BOARD_INFO("ewtzmu2", 0x69),
 		.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PI6),
 		.platform_data = &pana_gyro_pdata,
 	},
@@ -280,7 +278,7 @@ static struct bma250_platform_data gsensor_bma250_platform_data = {
 
 static struct i2c_board_info i2c_bma250_devices[] = {
 	{
-		I2C_BOARD_INFO(BMA250_I2C_NAME, 0x19 >> 0),
+		I2C_BOARD_INFO(BMA250_I2C_NAME, 0x19),
 		.platform_data = &gsensor_bma250_platform_data,
 		.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PO5),
 	},
@@ -293,7 +291,7 @@ static struct akm8975_platform_data compass_platform_data_xc = {
 
 static struct i2c_board_info i2c_akm8975_devices_xc[] = {
 	{
-		I2C_BOARD_INFO(AKM8975_I2C_NAME, 0x0D >> 0),
+		I2C_BOARD_INFO(AKM8975_I2C_NAME, 0x0D),
 		.platform_data = &compass_platform_data_xc,
 		.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PJ2),
 	},
@@ -375,21 +373,40 @@ static void enterprise_gsensor_irq_init(void)
 
 	pr_info("[GSNR] g-sensor irq_start...\n");
 
-	ret = gpio_request(TEGRA_GPIO_PN5, "GSNR_INT");
-	if (ret < 0) {
-		pr_err("%s: gpio_request failed %d\n", __func__, ret);
-		return;
-	}
+	if(htc_get_pcbid_info() <= PROJECT_PHASE_XB){
+		ret = gpio_request(TEGRA_GPIO_PO5, "GSNR_INT");
+		if (ret < 0) {
+			pr_err("%s: gpio_request failed %d\n", __func__, ret);
+			return;
+		}
 
-	ret = gpio_direction_input(TEGRA_GPIO_PN5);
-	if (ret < 0) {
-		pr_err("%s: gpio_direction_input failed %d\n", __func__, ret);
-		gpio_free(TEGRA_GPIO_PN5);
-		return;
+		ret = gpio_direction_input(TEGRA_GPIO_PO5);
+		if (ret < 0) {
+			pr_err("%s: gpio_direction_input failed %d\n", __func__, ret);
+			gpio_free(TEGRA_GPIO_PO5);
+			return;
+		}
+		tegra_gpio_enable(TEGRA_GPIO_PO5);
+		tegra_pinmux_set_pullupdown(TEGRA_PINGROUP_ULPI_DATA4, TEGRA_PUPD_NORMAL);
 	}
-		
+	else{
+		ret = gpio_request(TEGRA_GPIO_PN5, "GSNR_INT");
+		if (ret < 0) {
+			pr_err("%s: gpio_request failed %d\n", __func__, ret);
+			return;
+		}
+
+		ret = gpio_direction_input(TEGRA_GPIO_PN5);
+		if (ret < 0) {
+			pr_err("%s: gpio_direction_input failed %d\n", __func__, ret);
+			gpio_free(TEGRA_GPIO_PN5);
+			return;
+		}
+		tegra_gpio_enable(TEGRA_GPIO_PN5);
+		tegra_pinmux_set_pullupdown(TEGRA_PINGROUP_LCD_SDOUT, TEGRA_PUPD_NORMAL);
+
+	}	
 	pr_info("[GSNR] g-sensor irq end...\n");
-
 }
 
 static void enterprise_gyro_diag_init(void)
@@ -397,19 +414,22 @@ static void enterprise_gyro_diag_init(void)
 	int ret = 0;
 
 	pr_info("[GYRO] gyro diag_start...\n");
-		ret = gpio_request(TEGRA_GPIO_PH3, "GYRO_DIAG");
-		if (ret < 0) {
-			pr_err("%s: gpio_request failed %d\n", __func__, ret);
-			return;
-		}
 
-		ret = gpio_direction_input(TEGRA_GPIO_PH3);
-		if (ret < 0) {
-			pr_err("%s: gpio_direction_input failed %d\n", __func__, ret);
-			gpio_free(TEGRA_GPIO_PH3);
-			return;
-		}
+	ret = gpio_request(TEGRA_GPIO_PH3, "GYRO_DIAG");
+	if (ret < 0) {
+		pr_err("%s: gpio_request failed %d\n", __func__, ret);
+		return;
+	}
 
+	ret = gpio_direction_input(TEGRA_GPIO_PH3);
+	if (ret < 0) {
+		pr_err("%s: gpio_direction_input failed %d\n", __func__, ret);
+		gpio_free(TEGRA_GPIO_PH3);
+		return;
+	}
+	tegra_gpio_enable(TEGRA_GPIO_PH3);
+	tegra_pinmux_set_pullupdown(TEGRA_PINGROUP_GMI_AD11, TEGRA_PUPD_NORMAL);
+	
 	pr_info("[GYRO] gyro diag irq end...\n");
 
 }
@@ -418,6 +438,7 @@ static void __init enterprise_mpuirq_init(void)
 {
 	int ret = 0;
 
+	tegra_gpio_enable(TEGRA_GPIO_PI6);
 	ret = gpio_request(TEGRA_GPIO_PI6, SENSOR_MPU_NAME);
 	if (ret < 0) {
 		pr_err("%s: gpio_request failed %d\n", __func__, ret);
@@ -430,26 +451,31 @@ static void __init enterprise_mpuirq_init(void)
 		gpio_free(TEGRA_GPIO_PI6);
 		return;
 	}
+	tegra_pinmux_set_pullupdown(TEGRA_PINGROUP_GMI_CS7_N, TEGRA_PUPD_NORMAL);
 }
 
 static void enterprise_gyro_sleep_pin(void)
 {
 
 	int ret = 0;
+
 	ret = gpio_request(TEGRA_GPIO_PR2, "sleep_pin");
 	pr_info("[GYRO] mog sleep pin...\n");
 	if (ret < 0) {
 	pr_err("TEGRA_GPIO_PR2 request failes\n");
-			pr_err("%s: gpio_request failed %d\n", __func__, ret);
-			return;
+		pr_err("%s: gpio_request failed %d\n", __func__, ret);
+		return;
 	}
+
 	ret = gpio_direction_output(TEGRA_GPIO_PR2, 1);
 	if (ret < 0) {
 	pr_err("TEGRA_GPIOPR2, output failed\n");
-			pr_err("[sleep_pin] %s: gpio_direction_output failed %d\n", __func__, ret);
-			gpio_free(TEGRA_GPIO_PR2);
-			return;
+		pr_err("[sleep_pin] %s: gpio_direction_output failed %d\n", __func__, ret);
+		gpio_free(TEGRA_GPIO_PR2);
+		return;
 	}
+	tegra_gpio_enable(TEGRA_GPIO_PR2);
+
 }
 
 static void enterprise_comp_irq_init(void)
@@ -468,6 +494,10 @@ static void enterprise_comp_irq_init(void)
 		gpio_free(TEGRA_GPIO_PJ2);
 		return;
 	}
+
+	tegra_gpio_enable(TEGRA_GPIO_PJ2);
+	tegra_pinmux_set_pullupdown(TEGRA_PINGROUP_GMI_CS1_N, TEGRA_PUPD_NORMAL);
+	gpio_free(TEGRA_GPIO_PJ2);
 }
 
 struct enterprise_battery_gpio {
