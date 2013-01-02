@@ -142,7 +142,6 @@ static struct regulator_consumer_supply tps80031_ldo5_supply_common[] = {
 static struct regulator_consumer_supply tps80031_ldo6_supply_common[] = {
 	REGULATOR_SUPPLY("v_mmc_rx_2v85", NULL),
 	REGULATOR_SUPPLY("vdd_ddr_rx", NULL),
-	REGULATOR_SUPPLY("v_cam_vcm2v85", NULL),
 };
 
 static struct regulator_consumer_supply tps80031_ldo7_supply_common[] = {
@@ -515,12 +514,12 @@ FIXED_REG(1, aud_a1v8_en, NULL, TEGRA_GPIO_PD2, true, 1800, 1, 0);
 FIXED_REG(2, vib_3v_en, NULL, TEGRA_GPIO_PE7, true, 3000, 0, 0);
 FIXED_REG(3, mhl_3v3_en, "tps80031_LDOUSB", TEGRA_GPIO_PY2, true, 3300, 0, 0);
 FIXED_REG(4, aud_3v3_en,  NULL, TEGRA_GPIO_PB2, true, 3300, 0, 0);
-FIXED_REG(5, cam_vcm_2v85_en,  NULL, TEGRA_GPIO_PM7, false, 2800, 0, 0);
+FIXED_REG(5, cam_vcm_2v85_en,  NULL, TEGRA_GPIO_PM7, true, 2800, 0, 0);
 FIXED_REG(6, lcm_3v3_en,  NULL, TEGRA_GPIO_PE2, true, 3000, 1, 0);
 FIXED_REG(7, lcmio_1v8_en,  "tps80031_VIO", TEGRA_GPIO_PE5, true, 1800, 1, 0);
 FIXED_REG(8, srio_1v8_en,  "tps80031_VIO", TEGRA_GPIO_PY3, true, 1800, 1, 0);
-FIXED_REG(9, cam2_d1v2_en,  NULL, TEGRA_GPIO_PF6, true, 1800, 0, 0);
-FIXED_REG(10, cam_d1v2_en,  NULL, TEGRA_GPIO_PF5, true, 1800, 0, 0);
+FIXED_REG(9, cam2_d1v2_en,  NULL, TEGRA_GPIO_PF6, true, 1200, 0, 0);
+FIXED_REG(10, cam_d1v2_en,  NULL, TEGRA_GPIO_PF5, true, 1200, 0, 0);
 FIXED_REG(11, camio_1v8_en, NULL, TEGRA_GPIO_PBB4, true, 1800, 0, 0);
 FIXED_REG(12, cam_a2v85_en,  NULL, TEGRA_GPIO_PE3, true, 2800, 0, 0);
 FIXED_REG(13, mhl_1v2_en,  NULL, TEGRA_GPIO_PE4, true, 1200, 0, 0);
