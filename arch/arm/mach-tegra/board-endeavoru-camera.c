@@ -60,7 +60,9 @@
 static struct regulator *cam_vcm_2v85_en = NULL;
 static struct regulator *cam_a2v85_en = NULL;
 
-#define ENDEAVORU_GLOBAL_SKU 0x2F300
+// we dont need to be global
+/* #define ENDEAVORU_GLOBAL_SKU 0x2F300 */
+#define ENDEAVORU_GLOBAL_SKU 0x00000
 static int is_global_sku = 0;
 
 typedef enum
