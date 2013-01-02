@@ -705,7 +705,7 @@ static struct platform_device tegra_rawchip_device = {
 
 /* HTC_HEADSET_GPIO Driver */
 static struct htc_headset_gpio_platform_data htc_headset_gpio_data = {
-	.eng_cfg		= HS_ENRC2_U_XB,
+	.eng_cfg		= HS_EDE_U,
 	.hpin_gpio		= TEGRA_GPIO_PW2,
 	.key_gpio		= TEGRA_GPIO_PBB6,
 	.key_enable_gpio	= 0,
@@ -722,7 +722,7 @@ static struct platform_device htc_headset_gpio = {
 
 /* HTC_HEADSET_PMIC Driver */
 static struct htc_headset_pmic_platform_data htc_headset_pmic_data_xe = {
-	.eng_cfg	= HS_ENRC2_U_XB,
+	.eng_cfg	= HS_EDE_U,
 	.driver_flag	= DRIVER_HS_PMIC_RPC_KEY,
 	.adc_mic_bias	= {HS_DEF_MIC_ADC_12_BIT_MIN, HS_DEF_MIC_ADC_12_BIT_MAX},
 	.adc_remote	= {0, 164, 165, 379, 380, 830},
@@ -831,7 +831,7 @@ static void uart_lv_shift_en(int enable)
 }
 
 static struct htc_headset_mgr_platform_data htc_headset_mgr_data_xe = {
-	.eng_cfg		= HS_ENRC2_U_XB,
+	.eng_cfg		= HS_EDE_U,
 	.driver_flag		= DRIVER_HS_MGR_FLOAT_DET,
 	.headset_devices_num	= ARRAY_SIZE(headset_devices_xe),
 	.headset_devices	= headset_devices_xe,
