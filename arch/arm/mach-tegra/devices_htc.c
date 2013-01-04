@@ -95,6 +95,7 @@ int __init parse_tag_smi(const struct tag *tags)
 __tagtable(ATAG_SMI, parse_tag_smi);
 
 /* +FIXME: workaround for imc radio secbin code not ready */
+#ifndef CONFIG_UNIFIED_HBOOT
 static char IMEI[16];
 #define ATAG_IMEI  0x54410120
 int __init parse_tag_IMEI(const struct tag *tags)
@@ -160,6 +161,7 @@ static int __init IMEI_setting(void)
 	return 0;
 }
 late_initcall(IMEI_setting);
+#endif
 /* -FIXME: workaround for imc radio secbin code not ready */
 
 
@@ -766,6 +768,7 @@ int board_emmc_boot(void)
 }
 
 /* defined in nand_partitions.c */
+#ifndef CONFIG_UNIFIED_HBOOT
 extern int emmc_partition_read_proc(char *page, char **start, off_t off,
 		int count, int *eof, void *data);
 
@@ -783,6 +786,7 @@ static int __init emmc_create_proc_entry(void)
 	return 0;
 }
 late_initcall(emmc_create_proc_entry);
+#endif
 
 unsigned memory_size;
 int __init parse_tag_memsize(const struct tag *tags)

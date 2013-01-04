@@ -413,6 +413,11 @@ config TEGRA_CARDHU_DUAL_DSI_PANEL
 	help
 		Support for Dual DSI Panel on Nvidia Cardhu
 
+config UNIFIED_HBOOT
+	bool "Enable unified hboot support"
+	depends on ARCH_TEGRA_3x_SOC
+	default n
+
 config TEGRA_EMC_SCALING_ENABLE
 	bool "Enable scaling the memory frequency"
 	depends on TEGRA_SILICON_PLATFORM

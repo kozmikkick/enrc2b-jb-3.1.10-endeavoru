@@ -301,7 +301,9 @@ obj-${CONFIG_TEGRA_BB_XMM_POWER2}       += baseband-xmm-power2.o
 obj-${CONFIG_HTC_SIMHOTSWAP}                 += htc_simhotswap.o
 
 obj-${CONFIG_HTC_PROJECT}               += devices_htc.o
+ifneq ($(CONFIG_UNIFIED_HBOOT),y)
 obj-${CONFIG_HTC_PROJECT}               += nand_partitions.o
+endif
 obj-${CONFIG_HTC_PROJECT}               += htc_audio_power.o
 obj-${CONFIG_HTC_PROJECT}               += htc_wifi_nvs.o
 obj-${CONFIG_HTC_PROJECT}               += nvdumper.o
