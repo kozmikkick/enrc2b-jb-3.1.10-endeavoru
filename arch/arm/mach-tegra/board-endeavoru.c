@@ -583,13 +583,14 @@ static int eva_use_ext_1v2(void)
 
 static int eva_rawchip_vreg_on(void)
 {
+	struct clk *csus_clk = NULL;
+	struct clk *sensor_clk = NULL;
+
 	int ret;
 
 	pr_info("[CAM] rawchip power on ++\n");
 
 	/* enable main clock */
-	struct clk *csus_clk = NULL;
-	struct clk *sensor_clk = NULL;
 	csus_clk = clk_get(NULL, "csus");
 	if (IS_ERR_OR_NULL(csus_clk)) {
 		pr_err("%s: couldn't get csus clock\n", __func__);
@@ -640,11 +641,12 @@ static int eva_rawchip_vreg_on(void)
 
 static int eva_rawchip_vreg_off(void)
 {
+	struct clk *csus_clk = NULL;
+	struct clk *sensor_clk = NULL;
+
 	pr_info("[CAM] rawchip power off ++\n");
 
 	/* disable main clock */
-	struct clk *csus_clk = NULL;
-	struct clk *sensor_clk = NULL;
 	csus_clk = clk_get(NULL, "csus");
 	if (IS_ERR_OR_NULL(csus_clk)) {
 		pr_err("%s: couldn't get csus clock\n", __func__);
