@@ -771,7 +771,7 @@ static struct headset_adc_config htc_headset_mgr_config_xe[] = {
 
 static struct htc_headset_1wire_platform_data htc_headset_1wire_data = {
 	.tx_level_shift_en	= TEGRA_GPIO_PZ0,
-	.uart_sw		= TEGRA_GPIO_PE3,
+	.uart_sw		= 0,
 	.one_wire_remote	= {0x7E, 0x7F, 0x7D, 0x7F, 0x7B, 0x7F},
 	.remote_press		= TEGRA_GPIO_PBB6,
 	.onewire_tty_dev	= "/dev/ttyHS4",
@@ -803,8 +803,8 @@ static void headset_power(int hs_enable)
 
 static void headset_init(void)
 {
-	tegra_gpio_disable(TEGRA_GPIO_PO1);
-	tegra_gpio_disable(TEGRA_GPIO_PO2);
+	tegra_gpio_disable(TEGRA_GPIO_PY4);
+	tegra_gpio_disable(TEGRA_GPIO_PY5);
 	headset_power(0);
 }
 
@@ -812,15 +812,15 @@ static void uart_tx_gpo(int mode)
 {
 	switch (mode) {
 		case 0:
-			tegra_gpio_enable(TEGRA_GPIO_PO1);
-			gpio_direction_output(TEGRA_GPIO_PO1, 0);
+			tegra_gpio_enable(TEGRA_GPIO_PY4);
+			gpio_direction_output(TEGRA_GPIO_PY4, 0);
 			break;
 		case 1:
-			tegra_gpio_enable(TEGRA_GPIO_PO1);
-			gpio_direction_output(TEGRA_GPIO_PO1, 1);
+			tegra_gpio_enable(TEGRA_GPIO_PY4);
+			gpio_direction_output(TEGRA_GPIO_PY4, 1);
 			break;
 		case 2:
-			tegra_gpio_disable(TEGRA_GPIO_PO1);
+			tegra_gpio_disable(TEGRA_GPIO_PY4);
 			break;
 	}
 }
