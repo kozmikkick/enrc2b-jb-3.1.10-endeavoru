@@ -11,14 +11,8 @@ static void aic3008_powerinit(void)
 	power_config("AUD_MCLK", TEGRA_GPIO_PW4, INIT_OUTPUT_LOW);
 	sfio_deconfig("AUD_MCLK", TEGRA_GPIO_PW4);
 
-	if (pcbid >= PROJECT_PHASE_XB || board_get_sku_tag() == 0x2F300) {
-		power_config("AUD_HP_GAIN_CONTROL", TEGRA_GPIO_PD1, INIT_OUTPUT_LOW);
-		power_config("AUD_SPK_RST#", TEGRA_GPIO_PP6, INIT_OUTPUT_HIGH);
-		power_config("AUD_HEADPHONE_EN", TEGRA_GPIO_PP7, INIT_OUTPUT_LOW);
-	} else {
-		power_config("AUD_SPK_EN", TEGRA_GPIO_PP6, INIT_OUTPUT_LOW);
-		power_config("AUD_LINEOUT_EN", TEGRA_GPIO_PP7, INIT_OUTPUT_LOW);
-	}
+	power_config("AUD_SPK_EN", TEGRA_GPIO_PP6, INIT_OUTPUT_LOW);
+	power_config("AUD_LINEOUT_EN", TEGRA_GPIO_PP7, INIT_OUTPUT_LOW);
 
 	common_init();
 
@@ -64,27 +58,14 @@ static void aic3008_amp_powerup(int type)
 {
 	switch (type) {
 	case HEADSET_AMP:
-		if (pcbid >= PROJECT_PHASE_XB || board_get_sku_tag() == 0x2F300) {
-			mdelay(50);
-			power_config("AUD_HEADPHONE_EN", TEGRA_GPIO_PP7, GPIO_OUTPUT);
-		}
 		break;
 	case SPEAKER_AMP:
 		mdelay(50);
-		if (pcbid >= PROJECT_PHASE_XB || board_get_sku_tag() == 0x2F300) {
-#if (defined(CONFIG_SND_AMP_TFA9887))
-			set_tfa9887_spkamp(1, 0);
-#endif
-		} else {
-			power_config("AUD_SPK_EN", TEGRA_GPIO_PP6, GPIO_OUTPUT);
-		}
+		power_config("AUD_SPK_EN", TEGRA_GPIO_PP6, GPIO_OUTPUT);
 		break;
 	case DOCK_AMP:
 		mdelay(50);
-		if (pcbid >= PROJECT_PHASE_XB || board_get_sku_tag() == 0x2F300) {
-		} else {
-			power_config("AUD_LINEOUT_EN", TEGRA_GPIO_PP7, GPIO_OUTPUT);
-		}
+		power_config("AUD_LINEOUT_EN", TEGRA_GPIO_PP7, GPIO_OUTPUT);
 		dock_config("TEGRA_GPIO_DESK_AUD", TEGRA_GPIO_PCC5, true, true);
 		break;
 	default:
@@ -98,24 +79,12 @@ static void aic3008_amp_powerdown(int type)
 {
 	switch (type) {
 	case HEADSET_AMP:
-		if (pcbid >= PROJECT_PHASE_XB || board_get_sku_tag() == 0x2F300) {
-			power_deconfig("AUD_HEADPHONE_EN", TEGRA_GPIO_PP7, GPIO_OUTPUT);
-		}
 		break;
 	case SPEAKER_AMP:
-		if (pcbid >= PROJECT_PHASE_XB || board_get_sku_tag() == 0x2F300) {
-#if (defined(CONFIG_SND_AMP_TFA9887))
-			set_tfa9887_spkamp(0, 0);
-#endif
-		} else {
-			power_deconfig("AUD_SPK_EN", TEGRA_GPIO_PP6, GPIO_OUTPUT);
-		}
+		power_deconfig("AUD_SPK_EN", TEGRA_GPIO_PP6, GPIO_OUTPUT);
 		break;
 	case DOCK_AMP:
-		if (pcbid >= PROJECT_PHASE_XB || board_get_sku_tag() == 0x2F300) {
-		} else {
-			power_deconfig("AUD_LINEOUT_EN", TEGRA_GPIO_PP7, GPIO_OUTPUT);
-		}
+		power_deconfig("AUD_LINEOUT_EN", TEGRA_GPIO_PP7, GPIO_OUTPUT);
 		dock_config("TEGRA_GPIO_DESK_AUD", TEGRA_GPIO_PCC5, false, true);
 		break;
 	default:
@@ -132,18 +101,14 @@ static void aic3008_i2s_control(int dsp_enum)
 	case Phone_BT:
 	case VOIP_BT:
 	case VOIP_BT_HW_AEC:
-		if (pcbid >= PROJECT_PHASE_XB || board_get_sku_tag() == 0x2F300) {
-			power_config("AUD_BT_SEL", TEGRA_GPIO_PK5, GPIO_OUTPUT);
-		}
+		power_config("AUD_BT_SEL", TEGRA_GPIO_PK5, GPIO_OUTPUT);
 		break;
 	case FM_Headset:
 	case FM_Speaker:
 		power_config("AUD_FM_SEL", TEGRA_GPIO_PK6, GPIO_OUTPUT);
 		break;
 	default:
-		if (pcbid >= PROJECT_PHASE_XB || board_get_sku_tag() == 0x2F300) {
-			power_deconfig("AUD_BT_SEL", TEGRA_GPIO_PK5, GPIO_OUTPUT);
-		}
+		power_deconfig("AUD_BT_SEL", TEGRA_GPIO_PK5, GPIO_OUTPUT);
 		power_deconfig("AUD_FM_SEL", TEGRA_GPIO_PK6, GPIO_OUTPUT);
 		break;
 	}
@@ -154,14 +119,10 @@ static void aic3008_hs_vol_control(int db)
 {
 	switch (db) {
 		case BEATS_GAIN_ON:
-			if (pcbid >= PROJECT_PHASE_XB || board_get_sku_tag() == 0x2F300) {
-				power_config("AUD_HP_GAIN_CONTROL", TEGRA_GPIO_PD1, GPIO_OUTPUT);
-			}
+			power_config("AUD_HP_GAIN_CONTROL", TEGRA_GPIO_PD1, GPIO_OUTPUT);
 			break;
 		case BEATS_GAIN_OFF:
-			if (pcbid >= PROJECT_PHASE_XB || board_get_sku_tag() == 0x2F300) {
-				power_deconfig("AUD_HP_GAIN_CONTROL", TEGRA_GPIO_PD1, GPIO_OUTPUT);
-			}
+			power_deconfig("AUD_HP_GAIN_CONTROL", TEGRA_GPIO_PD1, GPIO_OUTPUT);
 			break;
 		default:
 			break;
