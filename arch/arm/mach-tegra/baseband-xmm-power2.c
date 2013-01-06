@@ -27,12 +27,13 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/wakelock.h>
-#include <linux/pm_qos_params.h>
+
+#include <mach/board_htc.h>
 #include <mach/usb_phy.h>
+
 #include "baseband-xmm-power.h"
 #include "board.h"
 #include "devices.h"
-#include <mach/board_htc.h>
 
 /*
  *	HTC: version history
@@ -52,13 +53,13 @@
  *			2. Add radio core dump
  *
  */
+
 #define MODULE_NAME "[XMM2_v1]"
+#define CORE_DUMP_DETECT TEGRA_GPIO_PN2
 
 MODULE_LICENSE("GPL");
 
-#define CORE_DUMP_DETECT TEGRA_GPIO_PN2
 //radio fatal
-
 static enum {
 	RADIO_STATUS_UNKNOWN,
 	RADIO_STATUS_READY,
@@ -83,23 +84,18 @@ static void htc_modem_kobject_release(struct kobject *kobj)
 static struct kobj_type htc_modem_ktype = {
     .release = htc_modem_kobject_release,
 };
-
 #endif /* BB_XMM_OEM1 */
 
 static unsigned long XYZ = 1000 * 1000000 + 800 * 1000 + 500;
 
 module_param(modem_ver, ulong, 0644);
-MODULE_PARM_DESC(modem_ver,
-	"baseband xmm power2 - modem software version");
+MODULE_PARM_DESC(modem_ver, "baseband xmm power2 - modem software version");
 module_param(modem_flash, ulong, 0644);
-MODULE_PARM_DESC(modem_flash,
-	"baseband xmm power2 - modem flash (1 = flash, 0 = flashless)");
+MODULE_PARM_DESC(modem_flash, "baseband xmm power2 - modem flash (1 = flash, 0 = flashless)");
 module_param(modem_pm, ulong, 0644);
-MODULE_PARM_DESC(modem_pm,
-	"baseband xmm power2 - modem power management (1 = pm, 0 = no pm)");
+MODULE_PARM_DESC(modem_pm, "baseband xmm power2 - modem power management (1 = pm, 0 = no pm)");
 module_param(XYZ, ulong, 0644);
-MODULE_PARM_DESC(XYZ,
-	"baseband xmm power2 - timing parameters X/Y/Z delay in ms");
+MODULE_PARM_DESC(XYZ, "baseband xmm power2 - timing parameters X/Y/Z delay in ms");
 
 static struct baseband_power_platform_data *baseband_power2_driver_data;
 static struct workqueue_struct *workqueue;
@@ -131,16 +127,6 @@ struct htc_modem_info {
     struct wake_lock modem_wake_lock;
     char debug_log[DEBUG_LOG_LENGTH];
 
-#if 0
-    struct battery_info_reply rep;
-
-    struct battery_adc_reply adc_data;
-    int adc_vref[ADC_REPLY_ARRAY_SIZE];
-
-    int guage_driver;
-    int charger;
-    int read_current;
-#endif
 };
 
 static struct htc_modem_info modem_info;
@@ -219,8 +205,6 @@ static irqreturn_t baseband_xmm_power2_ver_ge_1130_ipc_ap_wake_irq2
 {
 	int value;
 
-	/* pr_debug("%s\n", __func__); */
-
 	/* check for platform data */
 	if (!baseband_power2_driver_data) {
 		pr_err(MODULE_NAME "%s - !baseband_power2_driver_data\n", __func__);
@@ -267,7 +251,8 @@ static irqreturn_t baseband_xmm_power2_ver_ge_1130_ipc_ap_wake_irq2
 #ifdef BB_XMM_OEM1
 static void radio_detect_work_handler(struct work_struct *work)
 {
-	int radiopower=0;
+	int radiopower = 0;
+	int status = gpio_get_value(CORE_DUMP_DETECT);
 
 	pr_info("Enter radio_detect_work_handler\n");
 
@@ -280,11 +265,11 @@ static void radio_detect_work_handler(struct work_struct *work)
 		return;
 	}
 
-    if (!baseband_power2_driver_data)
-    {
+	if (!baseband_power2_driver_data)
+	{
 		pr_info("baseband_power2_driver_data is null\n");
 		return;
-    }
+	}
 
 	if (radio_detect_status != RADIO_STATUS_READY)
 	{
@@ -292,7 +277,6 @@ static void radio_detect_work_handler(struct work_struct *work)
 		return;
 	}
 
-	int status = gpio_get_value(CORE_DUMP_DETECT);
 	pr_info("CORE_DUMP_DETECT = %d\n", status);
 
 	if (Modem_is_6260())
@@ -451,8 +435,7 @@ static void baseband_xmm_power2_flashless_pm_ver_ge_1130_step1
 		return;
 
 	/* unregister usb host controller */
-	if (baseband_power2_driver_data->hsic_unregister && baseband_power2_driver_data->modem.xmm.hsic_device)
-	{
+	if (baseband_power2_driver_data->hsic_unregister && baseband_power2_driver_data->modem.xmm.hsic_device) {
 		baseband_power2_driver_data->hsic_unregister(baseband_power2_driver_data->modem.xmm.hsic_device);
 		baseband_power2_driver_data->modem.xmm.hsic_device = NULL;
 	}
@@ -501,8 +484,6 @@ static void baseband_xmm_power2_flashless_pm_ver_ge_1130_step2
 	gpio_set_value(baseband_power2_driver_data->
 		modem.xmm.ipc_hsic_active, 1);
 
-	/* printk(KERN_INFO"Mark recovery STEP3 %s \n", __func__); */
-
 	/* queue work function to check if enumeration succeeded */
 	/* recovery behavior */
 	baseband_xmm_power2_work->state =
@@ -514,31 +495,6 @@ static void baseband_xmm_power2_flashless_pm_ver_ge_1130_step2
 
 #define FILE_EXIST 0
 #define FILE_NOT_EXIST -1
-static int file_open_check(const char *file)
-{
-	mm_segment_t oldfs;
-	struct file *filp;
-	int ret = FILE_EXIST;
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-
-	filp = filp_open(file,
-		O_RDONLY, 0);
-	if (IS_ERR(filp) || (filp == NULL)) {
-		pr_info("open %s %ld\n", file, PTR_ERR(filp));
-		ret = FILE_NOT_EXIST;
-		goto open_fail;
-	}
-
-	/* open success */
-	filp_close(filp, NULL);
-
-open_fail:
-	set_fs(oldfs);
-	return ret;
-}
-
 static void baseband_xmm_power2_flashless_pm_ver_ge_1130_step3
 	(struct work_struct *work)
 {
@@ -583,13 +539,6 @@ static void baseband_xmm_power2_flashless_pm_ver_ge_1130_step3
 					pr_info("polling /dev/ttyACM0 %d times\n", loop+1);
 					pr_err("open /dev/ttyACM0 failed %ld\n",
 					PTR_ERR(filp));
-#if 0
-					debug_gpio_dump();
-					if (!board_mfg_mode())
-					{
-						trigger_radio_fatal_get_coredump("2nd enum step3 failed");
-					}
-#endif
 				}
 			}
 			else
@@ -621,10 +570,6 @@ static void baseband_xmm_power2_flashless_pm_ver_ge_1130_step3
 			baseband_xmm_power2_work);
 	} else
 		pr_info("%s - enum success\n", __func__);
-
-//	pr_info("VP:%s - pm qos CPU back to normal\n", __func__);
-//	pm_qos_update_request(&modem_boost_cpu_freq_req,
-//		(s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
 
 	pr_info("%s }\n", __func__);
 }
@@ -804,7 +749,6 @@ static void baseband_xmm_power2_work_func(struct work_struct *work)
 		baseband_xmm_power2_flashless_pm_ver_ge_1130_step4(work);
 		break;
 	}
-
 }
 
 static int baseband_xmm_power2_driver_probe(struct platform_device *device)
@@ -813,7 +757,9 @@ static int baseband_xmm_power2_driver_probe(struct platform_device *device)
 		= (struct baseband_power_platform_data *)
 			device->dev.platform_data;
 
-	int err=0;
+	int err = 0;
+	int err_radio = -EPERM;
+
 	pr_debug("%s 0704 - polling mechanism to find ttyACM0.\n", __func__);
 
 	if (data == NULL) {
@@ -831,8 +777,6 @@ static int baseband_xmm_power2_driver_probe(struct platform_device *device)
 	/* OEM specific initialization */
 #ifdef BB_XMM_OEM1
 
-		/*kobj_hsic_device =
-			 kobject_get(&baseband_power2_driver_data->modem.xmm.hsic_device->dev.kobj);*/
 		kobj_hsic_device = kobject_create_and_add("modem-dump-kobj", NULL);
 		if (!kobj_hsic_device) {
 			pr_err("[FLS] can not get modem_kobject\n");
@@ -841,7 +785,6 @@ static int baseband_xmm_power2_driver_probe(struct platform_device *device)
 
 		/* radio detect*/
 		radio_detect_status = RADIO_STATUS_UNKNOWN;
-		int err_radio = -EPERM;
 		if (Modem_is_6260())
 		{
 			pr_info( "modem is 6260, request CORE_DUMP_DETECT FALLING" );
@@ -966,9 +909,11 @@ if (kobj_hsic_device) {
 
 	/* free work structure */
 	if (workqueue) {
-		cancel_work_sync(baseband_xmm_power2_work);
+		cancel_work_sync((struct work_struct *)
+				baseband_xmm_power2_work);
 		destroy_workqueue(workqueue);
 	}
+
 	kfree(baseband_xmm_power2_work);
 	baseband_xmm_power2_work = (struct baseband_xmm_power_work_t *) 0;
 
@@ -1022,7 +967,7 @@ static struct platform_driver baseband_power2_driver = {
 
 static int __init baseband_xmm_power2_init(void)
 {
-	pr_info(MODULE_NAME "%s 0219 - \n", __func__);
+    pr_info(MODULE_NAME "%s 0219 - \n", __func__);
 
 #ifdef BB_XMM_OEM1
     modem_info.device_id = -1;
@@ -1030,13 +975,8 @@ static int __init baseband_xmm_power2_init(void)
 
     mutex_init(&modem_info.info_lock);
     modem_info.is_open = 0;
-#if 0
-    modem_info.modem_sim_det_kobj;
-    modem_info.modem_core_dump_kobj;
-#endif
 
-    wake_lock_init(&modem_info.modem_wake_lock, WAKE_LOCK_SUSPEND,
-	                            "htc_modem_6260");
+    wake_lock_init(&modem_info.modem_wake_lock, WAKE_LOCK_SUSPEND, "htc_modem_6260");
 #endif /* BB_XMM_OEM1 */
 
 	return platform_driver_register(&baseband_power2_driver);
