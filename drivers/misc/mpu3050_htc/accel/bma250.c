@@ -1,692 +1,767 @@
-/*
- $License:
-    Copyright (C) 2010 InvenSense Corporation, All Rights Reserved.
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-  $
- */
-
-/**
- *  @defgroup   ACCELDL (Motion Library - Accelerometer Driver Layer)
- *  @brief      Provides the interface to setup and handle an accelerometers
- *              connected to the secondary I2C interface of the gyroscope.
+/* drivers/i2c/chips/bma250.c - bma250 G-sensor driver
  *
- *  @{
- *      @file   bma250.c
- *      @brief  Accelerometer setup and handling methods.
+ * Copyright (C) 2008-2009 HTC Corporation.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 
-/* ------------------ */
-/* - Include Files. - */
-/* ------------------ */
-
-#ifdef __KERNEL__
-#include <linux/module.h>
-#endif
+#include <linux/i2c.h>
+#include <linux/slab.h>
+#include <linux/miscdevice.h>
+#include <asm/uaccess.h>
+#include <linux/input.h>
+#include <linux/bma250.h>
+#include <asm/gpio.h>
 #include <linux/delay.h>
-#include "mpu_htc.h"
-#include "mlos.h"
-#include "mlsl.h"
-#include <linux/delay.h>
-#include <log.h>
-#undef MPL_LOG_TAG
-#define MPL_LOG_TAG "MPL-acc"
+#include<linux/earlysuspend.h>
 
-/* full scale setting - register and mask */
-#define BOSCH_CTRL_REG      (0x0F)
-#define BOSCH_INT_REG       (0x16)
-#define BOSCH_PWR_REG       (0x11)
-#define BMA250_REG_SOFT_RESET (0x14)
-#define BMA250_BW_REG        (0x10)    /* BMA250 : BW setting register */
+/*#define EARLY_SUSPEND_BMA 1*/
 
-#define ACCEL_BOSCH_CTRL_MASK              (0x0F)
-#define ACCEL_BOSCH_CTRL_MASK_FSR          (0xF8)
-#define ACCEL_BOSCH_INT_MASK_WUP           (0xF8)
-#define ACCEL_BOSCH_INT_MASK_IRQ           (0xDF)
-#define BMA250_BW_MASK      (0xE0)    /* BMA250 : BW setting mask */
-
-#define D(x...) printk(KERN_DEBUG "[GSNR][BMA250] " x)
-#define I(x...) printk(KERN_INFO "[GSNR][BMA250] " x)
+#define D(x...) pr_info("[GSNR][BMA250] " x)
 #define E(x...) printk(KERN_ERR "[GSNR][BMA250 ERROR] " x)
 #define DIF(x...) if (debug_flag) printk(KERN_DEBUG "[GSNR][BMA250 DEBUG] " x)
 
-/* --------------------- */
-/* -    Variables.     - */
-/* --------------------- */
+#define DEFAULT_RANGE	BMA_RANGE_2G
+#define DEFAULT_BW	BMA_BW_31_25HZ
 
-struct bma250_config {
-	unsigned int odr; /* Output data rate mHz */
-	unsigned int fsr; /* full scale range mg */
-	unsigned int irq_type;
-	unsigned int power_mode;
-	unsigned char ctrl_reg; /* range */
-	unsigned char bw_reg; /* bandwidth */
-	unsigned char int_reg;
+static struct i2c_client *this_client;
+
+struct bma250_data {
+	struct input_dev *input_dev;
+	struct work_struct work;
+	struct early_suspend early_suspend;
 };
 
-struct bma250_private_data {
-	struct bma250_config suspend;
-	struct bma250_config resume;
-	unsigned char state;
-};
+static struct bma250_platform_data *pdata;
+static atomic_t PhoneOn_flag = ATOMIC_INIT(0);
+#define DEVICE_ACCESSORY_ATTR(_name, _mode, _show, _store) \
+struct device_attribute dev_attr_##_name = __ATTR(_name, _mode, _show, _store)
 
-static int set_normal_mode(void *mlsl_handle,
-			 struct ext_slave_platform_data *pdata)
+static int debug_flag;
+static char update_user_calibrate_data;
+static int bma250_chip;
+
+static int BMA_I2C_RxData(char *rxData, int length)
 {
-	int result = 0;
-	unsigned char data = 0;
-	result = MLSLSerialWriteSingle(mlsl_handle,
-		pdata->address,	BOSCH_PWR_REG, 0x00);
-	ERROR_CHECK(result);
+	int retry;
+	struct i2c_msg msgs[] = {
+		{
+		 .addr = this_client->addr,
+		 .flags = 0,
+		 .len = 1,
+		 .buf = rxData,
+		},
+		{
+		 .addr = this_client->addr,
+		 .flags = I2C_M_RD,
+		 .len = length,
+		 .buf = rxData,
+		 },
+	};
 
-	result =MLSLSerialRead(mlsl_handle, pdata->address, 0x00, 1,
-                                &data);
+	for (retry = 0; retry <= 1; retry++) {
+		if (i2c_transfer(this_client->adapter, msgs, 2) > 0)
+			break;
+		else
+			mdelay(10);
+	}
 
-	if(data == 0xf9){ // second source BMA250E chip id
-		printk("[GSNR]Use BMA250E Solution");
-		msleep(2);
+	if (retry > 1) {
+		E("%s: retry over 1\n", __func__);
+		return -EIO;
+	} else
+		return 0;
+}
+
+static int BMA_I2C_TxData(char *txData, int length)
+{
+	int retry;
+	struct i2c_msg msg[] = {
+		{
+		 .addr = this_client->addr,
+		 .flags = 0,
+		 .len = length,
+		 .buf = txData,
+		 },
+	};
+
+	for (retry = 0; retry <= 1; retry++) {
+		if (i2c_transfer(this_client->adapter, msg, 1) > 0)
+			break;
+		else
+			mdelay(10);
+	}
+
+	if (retry > 1) {
+		E("%s: retry over 1\n", __func__);
+		return -EIO;
+	} else
+		return 0;
+}
+
+static int BMA_Init(void)
+{
+	char buffer[4] = "";
+	int ret;
+	unsigned char range = 0, bw = 0;
+
+	memset(buffer, 0, 4);
+
+	buffer[0] = bma250_RANGE_SEL_REG;
+	ret = BMA_I2C_RxData(buffer, 2);
+	if (ret < 0)
+		return -1;
+	D("%s: bma250_RANGE_SEL_REG++: range = 0x%02x, bw = 0x%02x\n",
+		__func__, buffer[0], buffer[1]);
+	range = (buffer[0] & 0xF0) | DEFAULT_RANGE;
+	bw = (buffer[1] & 0xE0) | DEFAULT_BW;
+
+	buffer[3] = bw;
+	buffer[2] = bma250_BW_SEL_REG;
+	buffer[1] = range;
+	buffer[0] = bma250_RANGE_SEL_REG;
+	ret = BMA_I2C_TxData(buffer, 4);
+	if (ret < 0)
+		return -1;
+
+	/* Debug use */
+	buffer[0] = bma250_RANGE_SEL_REG;
+	ret = BMA_I2C_RxData(buffer, 2);
+	if (ret < 0)
+		return -1;
+	D("%s: bma250_RANGE_SEL_REG--: range = 0x%02x, bw = 0x%02x\n",
+		__func__, buffer[0], buffer[1]);
+
+	return 0;
+
+}
+
+int GSensorReadData(short *rbuf)
+{
+        char buffer[6];
+        int ret;
+
+        memset(buffer, 0, 6);
+
+        buffer[0] = bma250_X_AXIS_LSB_REG;
+        ret = BMA_I2C_RxData(buffer, 6);
+        if (ret < 0)
+                return ret;
+
+        /*D("%s: buffer(0, 1, 2, 3, 4, 5) = (0x%02x, 0x%02x, "
+                "0x%02x, 0x%02x, 0x%02x, 0x%02x)\n",
+                __func__, buffer[0], buffer[1], buffer[2],
+                buffer[3], buffer[4], buffer[5]);*/
+
+        rbuf[0] = (short)(buffer[1] << 8 | buffer[0]);
+        rbuf[0] >>= 6;
+        rbuf[1] = (short)(buffer[3] << 8 | buffer[2]);
+        rbuf[1] >>= 6;
+        rbuf[2] = (short)(buffer[5] << 8 | buffer[4]);
+        rbuf[2] >>= 6;
+
+        DIF("%s: (x, y, z) = (%d, %d, %d)\n",
+                __func__, rbuf[0], rbuf[1], rbuf[2]);
+
+        return 1;
+}
+
+
+
+static int BMA_TransRBuff(short *rbuf)
+{
+	char buffer[6];
+	int ret;
+
+	memset(buffer, 0, 6);
+
+	buffer[0] = bma250_X_AXIS_LSB_REG;
+	ret = BMA_I2C_RxData(buffer, 6);
+	if (ret < 0)
+		return ret;
+
+	/*D("%s: buffer(0, 1, 2, 3, 4, 5) = (0x%02x, 0x%02x, "
+		"0x%02x, 0x%02x, 0x%02x, 0x%02x)\n",
+		__func__, buffer[0], buffer[1], buffer[2],
+		buffer[3], buffer[4], buffer[5]);*/
+
+	rbuf[0] = (short)(buffer[1] << 8 | buffer[0]);
+	rbuf[0] >>= 6;
+	rbuf[1] = (short)(buffer[3] << 8 | buffer[2]);
+	rbuf[1] >>= 6;
+	rbuf[2] = (short)(buffer[5] << 8 | buffer[4]);
+	rbuf[2] >>= 6;
+
+	DIF("%s: (x, y, z) = (%d, %d, %d)\n",
+		__func__, rbuf[0], rbuf[1], rbuf[2]);
+
+	return 1;
+}
+
+
+/* set  operation mode: 0 = normal, 1 = suspend */
+int GSensor_set_mode(unsigned char mode)
+{
+        char buffer[2] = "";
+        int ret = 0;
+        unsigned char data1 = 0;
+
+        printk(KERN_INFO "[GSNR] Gsensor %s\n", mode ? "disable" : "enable");
+
+        memset(buffer, 0, 2);
+
+        D("%s: mode = 0x%02x\n", __func__, mode);
+        if (mode < 2) {
+                buffer[0] = bma250_MODE_CTRL_REG;
+                ret = BMA_I2C_RxData(buffer, 1);
+                if (ret < 0)
+                        return -1;
+                /*D("%s: MODE_CTRL_REG++ = 0x%02x\n", __func__, buffer[0]);*/
+
+                switch (mode) {
+                case bma250_MODE_NORMAL:
+                        if(bma250_chip)
+                                data1 = buffer[0] & 0x1F;
+                        else
+                                data1 = buffer[0] & 0x7F;
+                        break;
+                case bma250_MODE_SUSPEND:
+                        if(bma250_chip)
+                                data1 = buffer[0] | 0x20;
+                        else
+                                data1 = buffer[0] | 0x80;
+                        break;
+                default:
+                        break;
+                }
+
+                /*D("%s: data1 = 0x%02x\n", __func__, data1);*/
+                buffer[0] = bma250_MODE_CTRL_REG;
+                buffer[1] = data1;
+                ret = BMA_I2C_TxData(buffer, 2);
+        } else
+                ret = E_OUT_OF_RANGE;
+
+        /* Debug use */
+        /*buffer[0] = bma250_MODE_CTRL_REG;
+        ret = BMA_I2C_RxData(buffer, 1);
+        if (ret < 0)
+                return -1;
+        D("%s: MODE_CTRL_REG-- = 0x%02x\n", __func__, buffer[0]);*/
+
+        return ret;
+}
+
+/* set  operation mode: 0 = normal, 1 = suspend */
+static int BMA_set_mode(unsigned char mode)
+{
+	char buffer[2] = "";
+	int ret = 0;
+	unsigned char data1 = 0;
+
+	printk(KERN_INFO "[GSNR] Gsensor %s\n", mode ? "disable" : "enable");
+
+	memset(buffer, 0, 2);
+
+	D("%s: mode = 0x%02x\n", __func__, mode);
+	if (mode < 2) {
+		buffer[0] = bma250_MODE_CTRL_REG;
+		ret = BMA_I2C_RxData(buffer, 1);
+		if (ret < 0)
+			return -1;
+		/*D("%s: MODE_CTRL_REG++ = 0x%02x\n", __func__, buffer[0]);*/
+
+		switch (mode) {
+		case bma250_MODE_NORMAL:
+			if(bma250_chip)		
+				data1 = buffer[0] & 0x1F;
+			else
+				data1 = buffer[0] & 0x7F;
+			break;
+		case bma250_MODE_SUSPEND:
+			if(bma250_chip)
+				data1 = buffer[0] | 0x20;
+			else
+				data1 = buffer[0] | 0x80;
+			break;
+		default:
+			break;
+		}
+
+		/*D("%s: data1 = 0x%02x\n", __func__, data1);*/
+		buffer[0] = bma250_MODE_CTRL_REG;
+		buffer[1] = data1;
+		ret = BMA_I2C_TxData(buffer, 2);
+	} else
+		ret = E_OUT_OF_RANGE;
+
+	/* Debug use */
+	/*buffer[0] = bma250_MODE_CTRL_REG;
+	ret = BMA_I2C_RxData(buffer, 1);
+	if (ret < 0)
+		return -1;
+	D("%s: MODE_CTRL_REG-- = 0x%02x\n", __func__, buffer[0]);*/
+
+	return ret;
+}
+
+static int BMA_GET_INT(void)
+{
+	int ret;
+	ret = gpio_get_value(pdata->intr);
+	return ret;
+}
+
+static int bma_open(struct inode *inode, struct file *file)
+{
+	return nonseekable_open(inode, file);
+}
+
+static int bma_release(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+static long bma_ioctl(struct file *file, unsigned int cmd,
+	   unsigned long arg)
+{
+
+	void __user *argp = (void __user *)arg;
+
+	char rwbuf[8] = "";
+	int ret = -1;
+	short buf[8], temp;
+	int kbuf = 0;
+
+	DIF("%s: cmd = 0x%x\n", __func__, cmd);
+
+	switch (cmd) {
+	case BMA_IOCTL_READ:
+	case BMA_IOCTL_WRITE:
+	case BMA_IOCTL_SET_MODE:
+	case BMA_IOCTL_SET_CALI_MODE:
+	case BMA_IOCTL_SET_UPDATE_USER_CALI_DATA:
+		if (copy_from_user(&rwbuf, argp, sizeof(rwbuf)))
+			return -EFAULT;
+		break;
+	case BMA_IOCTL_READ_ACCELERATION:
+		if (copy_from_user(&buf, argp, sizeof(buf)))
+			return -EFAULT;
+		break;
+	case BMA_IOCTL_WRITE_CALI_VALUE:
+		if (copy_from_user(&kbuf, argp, sizeof(kbuf)))
+			return -EFAULT;
+		break;
+	default:
+		break;
+	}
+
+	switch (cmd) {
+	case BMA_IOCTL_INIT:
+		ret = BMA_Init();
+		if (ret < 0)
+			return ret;
+		break;
+	case BMA_IOCTL_READ:
+		if (rwbuf[0] < 1)
+			return -EINVAL;
+		/*ret = BMA_I2C_RxData(&rwbuf[1], rwbuf[0]);
+		if (ret < 0)
+			return ret;*/
+		break;
+	case BMA_IOCTL_WRITE:
+		if (rwbuf[0] < 2)
+			return -EINVAL;
+		/*ret = BMA_I2C_TxData(&rwbuf[1], rwbuf[0]);
+		if (ret < 0)
+			return ret;*/
+		break;
+	case BMA_IOCTL_WRITE_CALI_VALUE:
+		pdata->gs_kvalue = kbuf;
+		printk(KERN_INFO "%s: Write calibration value: 0x%X\n",
+			__func__, pdata->gs_kvalue);
+		break;
+	case BMA_IOCTL_READ_ACCELERATION:
+		ret = BMA_TransRBuff(&buf[0]);
+		if (ret < 0)
+			return ret;
+		break;
+	case BMA_IOCTL_READ_CALI_VALUE:
+		if ((pdata->gs_kvalue & (0x67 << 24)) != (0x67 << 24)) {
+			rwbuf[0] = 0;
+			rwbuf[1] = 0;
+			rwbuf[2] = 0;
+		} else {
+			rwbuf[0] = (pdata->gs_kvalue >> 16) & 0xFF;
+			rwbuf[1] = (pdata->gs_kvalue >>  8) & 0xFF;
+			rwbuf[2] =  pdata->gs_kvalue        & 0xFF;
+		}
+		DIF("%s: CALI(x, y, z) = (%d, %d, %d)\n",
+			__func__, rwbuf[0], rwbuf[1], rwbuf[2]);
+		break;
+	case BMA_IOCTL_SET_MODE:
+		BMA_set_mode(rwbuf[0]);
+		break;
+	case BMA_IOCTL_GET_INT:
+		temp = BMA_GET_INT();
+		break;
+	case BMA_IOCTL_GET_CHIP_LAYOUT:
+		if (pdata)
+			temp = pdata->chip_layout;
+		break;
+	case BMA_IOCTL_GET_CALI_MODE:
+		if (pdata)
+			temp = pdata->calibration_mode;
+		break;
+	case BMA_IOCTL_SET_CALI_MODE:
+		if (pdata)
+			pdata->calibration_mode = rwbuf[0];
+		break;
+	case BMA_IOCTL_GET_UPDATE_USER_CALI_DATA:
+		temp = update_user_calibrate_data;
+		break;
+	case BMA_IOCTL_SET_UPDATE_USER_CALI_DATA:
+		update_user_calibrate_data = rwbuf[0];
+		break;
+
+	default:
+		return -ENOTTY;
+	}
+
+	switch (cmd) {
+	case BMA_IOCTL_READ:
+		/*if (copy_to_user(argp, &rwbuf, sizeof(rwbuf)))
+			return -EFAULT;*/
+		break;
+	case BMA_IOCTL_READ_ACCELERATION:
+		if (copy_to_user(argp, &buf, sizeof(buf)))
+			return -EFAULT;
+		break;
+	case BMA_IOCTL_READ_CALI_VALUE:
+		if (copy_to_user(argp, &rwbuf, sizeof(rwbuf)))
+			return -EFAULT;
+		break;
+	case BMA_IOCTL_GET_INT:
+		if (copy_to_user(argp, &temp, sizeof(temp)))
+			return -EFAULT;
+		break;
+	case BMA_IOCTL_GET_CHIP_LAYOUT:
+		if (copy_to_user(argp, &temp, sizeof(temp)))
+			return -EFAULT;
+		break;
+	case BMA_IOCTL_GET_CALI_MODE:
+		if (copy_to_user(argp, &temp, sizeof(temp)))
+			return -EFAULT;
+		break;
+	case BMA_IOCTL_GET_UPDATE_USER_CALI_DATA:
+		if (copy_to_user(argp, &temp, sizeof(temp)))
+			return -EFAULT;
+		break;
+	default:
+		break;
 	}
 
 	return 0;
 }
-/*********************************************
-    Accelerometer Initialization Functions
-**********************************************/
 
-/**
- * Sets the IRQ to fire when one of the IRQ events occur.  Threshold and
- * duration will not be used uless the type is MOT or NMOT.
- *
- * @param config configuration to apply to, suspend or resume
- * @param irq_type The type of IRQ.  Valid values are
- * - MPU_SLAVE_IRQ_TYPE_NONE
- * - MPU_SLAVE_IRQ_TYPE_MOTION
- * - MPU_SLAVE_IRQ_TYPE_DATA_READY
- *
- */
-static int bma250_set_irq(void *mlsl_handle,
-			struct ext_slave_platform_data *pdata,
-			struct bma250_config *config,
-			int apply,
-			long irq_type)
+#ifdef EARLY_SUSPEND_BMA
+
+static void bma250_early_suspend(struct early_suspend *handler)
 {
-	unsigned char irq_bits = 0;
-	int result = ML_SUCCESS;
-
-	/* TODO Use irq when necessary */
-	return ML_SUCCESS;
-
-	if (irq_type == MPU_SLAVE_IRQ_TYPE_MOTION)
-		return ML_ERROR_FEATURE_NOT_IMPLEMENTED;
-
-	config->irq_type = (unsigned char)irq_type;
-
-	if (irq_type == MPU_SLAVE_IRQ_TYPE_DATA_READY) {
-		irq_bits = 0x20;
-		config->int_reg &= ACCEL_BOSCH_INT_MASK_WUP;
-	} else {
-		irq_bits = 0x00;
-		config->int_reg &= ACCEL_BOSCH_INT_MASK_WUP;
-	}
-
-	config->int_reg &= ACCEL_BOSCH_INT_MASK_IRQ;
-	config->int_reg |= irq_bits;
-
-	if (apply) {
-
-		if (!config->power_mode) {
-			/* BMA250: Software reset */
-			result = MLSLSerialWriteSingle(mlsl_handle,
-					pdata->address, BMA250_REG_SOFT_RESET,
-					0xB6);
-			ERROR_CHECK(result);
-			MLOSSleep(1);
-		}
-
-		result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-			BOSCH_CTRL_REG, config->ctrl_reg);
-		ERROR_CHECK(result);
-
-		result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-			BOSCH_INT_REG, config->int_reg);
-		ERROR_CHECK(result);
-
-		if (!config->power_mode) {
-			result = MLSLSerialWriteSingle(mlsl_handle,
-				pdata->address, BOSCH_PWR_REG, 0x80);
-			ERROR_CHECK(result);
-			MLOSSleep(1);
-		} else {
-			result = set_normal_mode(mlsl_handle, pdata);
-			ERROR_CHECK(result);
-		}
-	}
-	return result;
-}
-
-/**
- * Set the Output data rate for the particular configuration
- *
- * @param config Config to modify with new ODR
- * @param odr Output data rate in units of 1/1000Hz
- */
-static int bma250_set_odr(void *mlsl_handle,
-			struct ext_slave_platform_data *pdata,
-			struct bma250_config *config,
-			int apply,
-			long odr)
-{
-	unsigned char odr_bits = 0;
-	unsigned char wup_bits = 0;
-	int result = ML_SUCCESS;
-
-	/* TO DO use dynamic bandwidth when stability safe */
-	/*if (odr > 100000) {
-		config->odr = 125000;
-		odr_bits = 0x0C;
-		config->power_mode = 1;
-	} else if (odr > 50000) {
-		config->odr = 62500;
-		odr_bits = 0x0B;
-		config->power_mode = 1;
-	} else if (odr > 20000) {
-		config->odr = 31250;
-		odr_bits = 0x0A;
-		config->power_mode = 1;
-	} else if (odr > 15000) {
-		config->odr = 15630;
-		odr_bits = 0x09;
-		config->power_mode = 1;
-	} else if (odr > 0) {
-		config->odr = 7810;
-		odr_bits = 0x08;
-		config->power_mode = 1;
-	} else {
-		config->odr = 0;
-		wup_bits = 0x00;
-		config->power_mode = 0;
-	}*/
-	if (odr > 100000) {
-		config->odr = 31250;
-		odr_bits = 0x0A;
-		config->power_mode = 1;
-	} else if (odr > 50000) {
-		config->odr = 31250;
-		odr_bits = 0x0A;
-		config->power_mode = 1;
-	} else if (odr > 20000) {
-		config->odr = 31250;
-		odr_bits = 0x0A;
-		config->power_mode = 1;
-	} else if (odr > 15000) {
-		config->odr = 31250;
-		odr_bits = 0x0A;
-		config->power_mode = 1;
-	} else if (odr > 0) {
-		config->odr = 31250;
-		odr_bits = 0x0A;
-		config->power_mode = 1;
-	} else {
-		config->odr = 0;
-		wup_bits = 0x00;
-		config->power_mode = 0;
-	}
-
-	switch (config->power_mode) {
-	case 1:
-		config->bw_reg &= BMA250_BW_MASK;
-		config->bw_reg |= odr_bits;
-		config->int_reg &= ACCEL_BOSCH_INT_MASK_WUP;
-		break;
-	case 0:
-		config->int_reg &= ACCEL_BOSCH_INT_MASK_WUP;
-		config->int_reg |= wup_bits;
-		break;
-	default:
-		break;
-	}
-
-	MPL_LOGV("ODR: %d \n", config->odr);
-	if (apply) {
-			/* BMA250: Software reset */
-			result = MLSLSerialWriteSingle(mlsl_handle,
-					pdata->address, BMA250_REG_SOFT_RESET,
-					0xB6);
-			ERROR_CHECK(result);
-			MLOSSleep(1);
-
-			result = MLSLSerialWriteSingle(mlsl_handle,
-					pdata->address, BMA250_BW_REG,
-					config->bw_reg);
-			ERROR_CHECK(result);
-
-			/* TODO Use irq when necessary */
-			/*
-			result = MLSLSerialWriteSingle(mlsl_handle,
-					pdata->address,	BOSCH_INT_REG,
-					config->int_reg);
-			ERROR_CHECK(result);*/
-
-			if (!config->power_mode) {
-				result = MLSLSerialWriteSingle(mlsl_handle,
-						pdata->address,	BOSCH_PWR_REG,
-						0x80);
-				ERROR_CHECK(result);
-				MLOSSleep(1);
-			} else {
-				result = set_normal_mode(mlsl_handle, pdata);
-				ERROR_CHECK(result);
-			}
-	}
-
-	return result;
-}
-
-/**
- * Set the full scale range of the accels
- *
- * @param config pointer to configuration
- * @param fsr requested full scale range
- */
-static int bma250_set_fsr(void *mlsl_handle,
-			struct ext_slave_platform_data *pdata,
-			struct bma250_config *config,
-			int apply,
-			long fsr)
-{
-	unsigned char fsr_bits;
-	int result = ML_SUCCESS;
-
-	/* TO DO use dynamic range when stability safe */
-	/*if (fsr <= 2048) {
-		fsr_bits = 0x03;
-		config->fsr = 2048;
-	} else if (fsr <= 4096) {
-		fsr_bits = 0x05;
-		config->fsr = 4096;
-	} else if (fsr <= 8192) {
-		fsr_bits = 0x08;
-		config->fsr = 8192;
-	} else if (fsr <= 16384) {
-		fsr_bits = 0x0C;
-		config->fsr = 16384;
-	} else {
-		fsr_bits = 0x03;
-		config->fsr = 2048;
-	}*/
-	if (fsr <= 2048) {
-		fsr_bits = 0x03;
-		config->fsr = 2048;
-	} else if (fsr <= 4096) {
-		fsr_bits = 0x03;
-		config->fsr = 2048;
-	} else if (fsr <= 8192) {
-		fsr_bits = 0x03;
-		config->fsr = 2048;
-	} else if (fsr <= 16384) {
-		fsr_bits = 0x03;
-		config->fsr = 2048;
-	} else {
-		fsr_bits = 0x03;
-		config->fsr = 2048;
-	}
-
-	config->ctrl_reg &= ACCEL_BOSCH_CTRL_MASK_FSR;
-	config->ctrl_reg |= fsr_bits;
-
-	MPL_LOGV("FSR: %d \n", config->fsr);
-	if (apply) {
-
-		if (!config->power_mode) {
-			/* BMA250: Software reset */
-			result = MLSLSerialWriteSingle(mlsl_handle,
-				pdata->address, BMA250_REG_SOFT_RESET, 0xB6);
-			ERROR_CHECK(result);
-			MLOSSleep(1);
-		}
-
-		result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-			BOSCH_CTRL_REG, config->ctrl_reg);
-		ERROR_CHECK(result);
-
-		result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-			BOSCH_CTRL_REG, config->ctrl_reg);
-		ERROR_CHECK(result);
-
-		if (!config->power_mode) {
-			result = MLSLSerialWriteSingle(mlsl_handle,
-				pdata->address,	BOSCH_PWR_REG, 0x80);
-			ERROR_CHECK(result);
-			MLOSSleep(1);
-		} else {
-			result = set_normal_mode(mlsl_handle, pdata);
-			ERROR_CHECK(result);
-		}
-	}
-	return result;
-}
-
-static int bma250_suspend(void *mlsl_handle,
-			  struct ext_slave_descr *slave,
-			  struct ext_slave_platform_data *pdata)
-{
-	printk("[GSNR]bma250_suspend start\n");
-	int result = 0;
-	unsigned char ctrl_reg;
-	unsigned char int_reg;
-
-	struct bma250_private_data *private_data = pdata->private_data;
-	ctrl_reg = private_data->suspend.ctrl_reg;
-	int_reg = private_data->suspend.int_reg;
-
-	private_data->state = 1;
-
-	/* TO DO sync from bma150 of MPL3.3.0, comment follows */
-	/* BMA250: Software reset */
-	/*result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-		BMA250_REG_SOFT_RESET, 0xB6);
-	ERROR_CHECK(result);
-	MLOSSleep(1);
-
-	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-		BOSCH_CTRL_REG, ctrl_reg);
-	ERROR_CHECK(result);*/
-
-	/* TODO Use irq when necessary */
-	/*result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-		BOSCH_INT_REG, int_reg);
-	ERROR_CHECK(result);*/
-
-	if (!private_data->suspend.power_mode) {
-		result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-			BOSCH_PWR_REG, 0x80);
-		ERROR_CHECK(result);
-	}
-
-	return result;
-}
-
-
-static int bma250_resume(void *mlsl_handle,
-			 struct ext_slave_descr *slave,
-			 struct ext_slave_platform_data *pdata)
-{
-
-	int result;
-	unsigned char ctrl_reg;
-	unsigned char bw_reg;
-	unsigned char int_reg;
-
-	struct bma250_private_data *private_data = pdata->private_data;
-	ctrl_reg = private_data->resume.ctrl_reg;
-	bw_reg = private_data->resume.bw_reg;
-	int_reg = private_data->resume.int_reg;
-
-	private_data->state = 0;
-
-	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-		BMA250_REG_SOFT_RESET, 0xB6);  /* BMA250: Software reset */
-	ERROR_CHECK(result);
-	MLOSSleep(1);
-
-	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-		BOSCH_CTRL_REG, ctrl_reg);
-	ERROR_CHECK(result);
-
-	result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-		BMA250_BW_REG, bw_reg);
-	ERROR_CHECK(result);
-
-	/* TODO Use irq when necessary */
-	/*result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-		BOSCH_INT_REG, int_reg);
-	ERROR_CHECK(result);*/
-
-	if (!private_data->resume.power_mode) {
-		result = MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-			BOSCH_PWR_REG, 0x80);
-		ERROR_CHECK(result);
-	} else {
-		result = set_normal_mode(mlsl_handle, pdata);
-		ERROR_CHECK(result);
-	}
-
-	return result;
-}
-
-static int bma250_read(void *mlsl_handle,
-		       struct ext_slave_descr *slave,
-		       struct ext_slave_platform_data *pdata,
-		       unsigned char *data)
-{
-	int result;
-
-	result = MLSLSerialRead(mlsl_handle, pdata->address,
-		slave->reg, slave->len, data);
-
-	return result;
-}
-
-static int bma250_init(void *mlsl_handle,
-			  struct ext_slave_descr *slave,
-			  struct ext_slave_platform_data *pdata)
-{
-	printk(KERN_INFO "[GSNR]Gsensor enable\n");
-	tMLError result;
-	unsigned char reg = 0;
-	unsigned char bw_reg = 0;
-
-	struct bma250_private_data *private_data;
-	private_data = (struct bma250_private_data *)
-		MLOSMalloc(sizeof(struct bma250_private_data));
-
-	if (!private_data)
-		return ML_ERROR_MEMORY_EXAUSTED;
-
-
-
-	pdata->private_data = private_data;
-
-	result =
-	    MLSLSerialWriteSingle(mlsl_handle, pdata->address,
-		BMA250_REG_SOFT_RESET, 0xB6);  /* BMA250: Software reset */
-	ERROR_CHECK(result);
-	MLOSSleep(1);
-
-	result =
-	    MLSLSerialRead(mlsl_handle, pdata->address, BOSCH_CTRL_REG, 1,
-				&reg);
-	ERROR_CHECK(result);
-
-	result =
-	    MLSLSerialRead(mlsl_handle, pdata->address, BMA250_BW_REG, 1,
-				&bw_reg);
-	ERROR_CHECK(result);
-
-	private_data->resume.ctrl_reg = reg;
-	private_data->suspend.ctrl_reg = reg;
-
-	private_data->resume.bw_reg = bw_reg;
-	private_data->suspend.bw_reg = bw_reg;
-
-	/* TODO Use irq when necessary */
-	/*result =
-	    MLSLSerialRead(mlsl_handle, pdata->address, BOSCH_INT_REG, 1, &reg);
-	ERROR_CHECK(result);*/
-
-	private_data->resume.int_reg = reg;
-	private_data->suspend.int_reg = reg;
-
-	private_data->resume.power_mode = 1;
-	private_data->suspend.power_mode = 0;
-
-	private_data->state = 0;
-
-	bma250_set_odr(mlsl_handle, pdata, &private_data->suspend,
-			FALSE, 0);
-	bma250_set_odr(mlsl_handle, pdata, &private_data->resume,
-			TRUE, 25000);
-	bma250_set_fsr(mlsl_handle, pdata, &private_data->suspend,
-			FALSE, 2048);
-	bma250_set_fsr(mlsl_handle, pdata, &private_data->resume,
-			FALSE, 2048);
-
-	/* TODO Use irq when necessary */
-	/*bma250_set_irq(mlsl_handle, pdata, &private_data->suspend,
-			FALSE,
-			MPU_SLAVE_IRQ_TYPE_NONE);
-	bma250_set_irq(mlsl_handle, pdata, &private_data->resume,
-			FALSE,
-			MPU_SLAVE_IRQ_TYPE_NONE);*/
-
-	result =
-	    MLSLSerialWriteSingle(mlsl_handle, pdata->address, BOSCH_PWR_REG,
-					0x80);
-	ERROR_CHECK(result);
-
-	return result;
-}
-
-static int bma250_exit(void *mlsl_handle,
-			  struct ext_slave_descr *slave,
-			  struct ext_slave_platform_data *pdata)
-{
-	printk(KERN_INFO "[GSNR]Gsensor disable\n");
-	if (pdata->private_data)
-		return MLOSFree(pdata->private_data);
+	if (!atomic_read(&PhoneOn_flag))
+		BMA_set_mode(bma250_MODE_SUSPEND);
 	else
-		return ML_SUCCESS;
+		printk(KERN_DEBUG "bma250_early_suspend: PhoneOn_flag is set\n");
 }
 
-static int bma250_config(void *mlsl_handle,
-			struct ext_slave_descr *slave,
-			struct ext_slave_platform_data *pdata,
-			struct ext_slave_config *data)
+static void bma250_late_resume(struct early_suspend *handler)
 {
-	struct bma250_private_data *private_data = pdata->private_data;
-	if (!data->data)
-		return ML_ERROR_INVALID_PARAMETER;
-
-	switch (data->key) {
-	case MPU_SLAVE_CONFIG_ODR_SUSPEND:
-		return bma250_set_odr(mlsl_handle, pdata,
-					&private_data->suspend,
-					data->apply,
-					*((long *)data->data));
-	case MPU_SLAVE_CONFIG_ODR_RESUME:
-		return bma250_set_odr(mlsl_handle, pdata,
-					&private_data->resume,
-					data->apply,
-					*((long *)data->data));
-	case MPU_SLAVE_CONFIG_FSR_SUSPEND:
-		return bma250_set_fsr(mlsl_handle, pdata,
-					&private_data->suspend,
-					data->apply,
-					*((long *)data->data));
-	case MPU_SLAVE_CONFIG_FSR_RESUME:
-		return bma250_set_fsr(mlsl_handle, pdata,
-					&private_data->resume,
-					data->apply,
-					*((long *)data->data));
-	case MPU_SLAVE_CONFIG_IRQ_SUSPEND:
-		return bma250_set_irq(mlsl_handle, pdata,
-					&private_data->suspend,
-					data->apply,
-					*((long *)data->data));
-	case MPU_SLAVE_CONFIG_IRQ_RESUME:
-		return bma250_set_irq(mlsl_handle, pdata,
-					&private_data->resume,
-					data->apply,
-					*((long *)data->data));
-	default:
-		return ML_ERROR_FEATURE_NOT_IMPLEMENTED;
-	};
-	return ML_SUCCESS;
+	BMA_set_mode(bma250_MODE_NORMAL);
 }
 
-static int bma250_get_config(void *mlsl_handle,
-				struct ext_slave_descr *slave,
-				struct ext_slave_platform_data *pdata,
-				struct ext_slave_config *data)
+#else /* EARLY_SUSPEND_BMA */
+
+static int bma250_suspend(struct i2c_client *client, pm_message_t mesg)
 {
-	struct bma250_private_data *private_data = pdata->private_data;
-	if (!data->data)
-		return ML_ERROR_INVALID_PARAMETER;
+	BMA_set_mode(bma250_MODE_SUSPEND);
 
-	switch (data->key) {
-	case MPU_SLAVE_CONFIG_ODR_SUSPEND:
-		(*(unsigned long *)data->data) =
-			(unsigned long) private_data->suspend.odr;
-		break;
-	case MPU_SLAVE_CONFIG_ODR_RESUME:
-		(*(unsigned long *)data->data) =
-			(unsigned long) private_data->resume.odr;
-		break;
-	case MPU_SLAVE_CONFIG_FSR_SUSPEND:
-		(*(unsigned long *)data->data) =
-			(unsigned long) private_data->suspend.fsr;
-		break;
-	case MPU_SLAVE_CONFIG_FSR_RESUME:
-		(*(unsigned long *)data->data) =
-			(unsigned long) private_data->resume.fsr;
-		break;
-	case MPU_SLAVE_CONFIG_IRQ_SUSPEND:
-		(*(unsigned long *)data->data) =
-			(unsigned long) private_data->suspend.irq_type;
-		break;
-	case MPU_SLAVE_CONFIG_IRQ_RESUME:
-		(*(unsigned long *)data->data) =
-			(unsigned long) private_data->resume.irq_type;
-		break;
-	default:
-		return ML_ERROR_FEATURE_NOT_IMPLEMENTED;
-	};
-
-	return ML_SUCCESS;
+	return 0;
 }
 
-static struct ext_slave_descr bma250_descr = {
-	/*.init             = */ bma250_init,
-	/*.exit             = */ bma250_exit,
-	/*.suspend          = */ bma250_suspend,
-	/*.resume           = */ bma250_resume,
-	/*.read             = */ bma250_read,
-	/*.config           = */ bma250_config,
-	/*.get_config       = */ bma250_get_config,
-	/*.name             = */ "bma250",
-	/*.type             = */ EXT_SLAVE_TYPE_ACCELEROMETER,
-	/*.id               = */ ACCEL_ID_BMA250,
-	/*.reg              = */ 0x02,
-	/*.len              = */ 6,
-	/*.endian           = */ EXT_SLAVE_LITTLE_ENDIAN,
-	/*.range            = */ {2, 0},
+static int bma250_resume(struct i2c_client *client)
+{
+	BMA_set_mode(bma250_MODE_NORMAL);
+	return 0;
+}
+#endif /* EARLY_SUSPEND_BMA */
+
+static ssize_t bma250_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	char *s = buf;
+	s += sprintf(s, "%d\n", atomic_read(&PhoneOn_flag));
+	return s - buf;
+}
+
+static ssize_t bma250_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	if (count == (strlen("enable") + 1) &&
+	   strncmp(buf, "enable", strlen("enable")) == 0) {
+		atomic_set(&PhoneOn_flag, 1);
+		printk(KERN_DEBUG "bma250_store: PhoneOn_flag=%d\n",
+			atomic_read(&PhoneOn_flag));
+		return count;
+	}
+	if (count == (strlen("disable") + 1) &&
+	   strncmp(buf, "disable", strlen("disable")) == 0) {
+		atomic_set(&PhoneOn_flag, 0);
+		printk(KERN_DEBUG "bma250_store: PhoneOn_flag=%d\n",
+			atomic_read(&PhoneOn_flag));
+		return count;
+	}
+	E("bma250_store: invalid argument\n");
+	return -EINVAL;
+
+}
+
+static DEVICE_ACCESSORY_ATTR(PhoneOnOffFlag, 0664, \
+	bma250_show, bma250_store);
+
+static ssize_t debug_flag_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	char *s = buf;
+	char buffer, range = -1, bandwidth = -1, mode = -1;
+	int ret;
+
+	buffer = bma250_BW_SEL_REG;
+	ret = BMA_I2C_RxData(&buffer, 1);
+	if (ret < 0)
+		return -1;
+	bandwidth = (buffer & 0x1F);
+
+	buffer = bma250_RANGE_SEL_REG;
+	ret = BMA_I2C_RxData(&buffer, 1);
+	if (ret < 0)
+		return -1;
+	range = (buffer & 0xF);
+
+	buffer = bma250_MODE_CTRL_REG;
+	ret = BMA_I2C_RxData(&buffer, 1);
+	if (ret < 0)
+		return -1;
+	mode = ((buffer & 0x80) >> 7);
+
+	s += sprintf(s, "debug_flag = %d, range = 0x%x, bandwidth = 0x%x, "
+		"mode = 0x%x\n", debug_flag, range, bandwidth, mode);
+
+	return s - buf;
+}
+static ssize_t debug_flag_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	debug_flag = -1;
+	sscanf(buf, "%d", &debug_flag);
+
+	return count;
+
+}
+
+static DEVICE_ACCESSORY_ATTR(debug_en, 0664, \
+	debug_flag_show, debug_flag_store);
+
+int bma250_registerAttr(void)
+{
+	int ret;
+	struct class *htc_accelerometer_class;
+	struct device *accelerometer_dev;
+
+	htc_accelerometer_class = class_create(THIS_MODULE,
+					"htc_accelerometer");
+	if (IS_ERR(htc_accelerometer_class)) {
+		ret = PTR_ERR(htc_accelerometer_class);
+		htc_accelerometer_class = NULL;
+		goto err_create_class;
+	}
+
+	accelerometer_dev = device_create(htc_accelerometer_class,
+				NULL, 0, "%s", "accelerometer");
+	if (unlikely(IS_ERR(accelerometer_dev))) {
+		ret = PTR_ERR(accelerometer_dev);
+		accelerometer_dev = NULL;
+		goto err_create_accelerometer_device;
+	}
+
+	/* register the attributes */
+	ret = device_create_file(accelerometer_dev, &dev_attr_PhoneOnOffFlag);
+	if (ret)
+		goto err_create_accelerometer_device_file;
+
+	/* register the debug_en attributes */
+	ret = device_create_file(accelerometer_dev, &dev_attr_debug_en);
+	if (ret)
+		goto err_create_accelerometer_debug_en_device_file;
+
+	return 0;
+
+err_create_accelerometer_debug_en_device_file:
+	device_remove_file(accelerometer_dev, &dev_attr_PhoneOnOffFlag);
+err_create_accelerometer_device_file:
+	device_unregister(accelerometer_dev);
+err_create_accelerometer_device:
+	class_destroy(htc_accelerometer_class);
+err_create_class:
+
+	return ret;
+}
+
+static struct file_operations bma_fops = {
+	.owner = THIS_MODULE,
+	.open = bma_open,
+	.release = bma_release,
+	.unlocked_ioctl = bma_ioctl,
 };
 
-struct ext_slave_descr *bma250_get_slave_descr(void)
-{
-	printk(KERN_INFO "[GSNR]G-sensor driver: init\n");
-	return &bma250_descr;
-}
-EXPORT_SYMBOL(bma250_get_slave_descr);
+static struct miscdevice bma_device = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "bma150",
+	.fops = &bma_fops,
+};
 
-#ifdef __KERNEL__
-MODULE_AUTHOR("Invensense");
-MODULE_DESCRIPTION("User space IRQ handler for MPU3xxx devices");
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("bma");
+int bma250_probe(struct i2c_client *client, const struct i2c_device_id *id)
+{
+	struct bma250_data *bma;
+	char buffer[2];
+	int err = 0;
+
+	printk("bma250 probe start\n");
+
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+		err = -ENODEV;
+		goto exit_check_functionality_failed;
+	}
+
+	bma = kzalloc(sizeof(struct bma250_data), GFP_KERNEL);
+	if (!bma) {
+		err = -ENOMEM;
+		goto exit_alloc_data_failed;
+	}
+
+	i2c_set_clientdata(client, bma);
+
+	pdata = client->dev.platform_data;
+	if (pdata == NULL) {
+		E("bma250_init_client: platform data is NULL\n");
+		goto exit_platform_data_null;
+	}
+
+	pdata->gs_kvalue = gs_kvalue;
+	printk(KERN_INFO "BMA250 G-sensor I2C driver: gs_kvalue = 0x%X\n",
+		pdata->gs_kvalue);
+
+	this_client = client;
+
+	buffer[0] = bma250_CHIP_ID_REG;
+	err = BMA_I2C_RxData(buffer, 1);
+	if (err < 0)
+		goto exit_wrong_ID;
+	/*D("%s: CHIP ID = 0x%02x\n", __func__, buffer[0]);*/
+	if (buffer[0] != 0x3) {
+		printk("[GSNR] Use BMA250E solution chip_id is %x",buffer[0]);
+		bma250_chip = 1;
+	}
+	else
+		bma250_chip = 0;
+
+	err = BMA_Init();
+	if (err < 0) {
+		E("bma250_probe: bma_init failed\n");
+		goto exit_init_failed;
+	}
+
+	err = misc_register(&bma_device);
+	if (err) {
+		E("bma250_probe: device register failed\n");
+		goto exit_misc_device_register_failed;
+	}
+
+#ifdef EARLY_SUSPEND_BMA
+	bma->early_suspend.suspend = bma250_early_suspend;
+	bma->early_suspend.resume = bma250_late_resume;
+	register_early_suspend(&bma->early_suspend);
 #endif
 
-/**
- *  @}
- */
+	err = bma250_registerAttr();
+	if (err) {
+		E("%s: set spi_bma150_registerAttr fail!\n", __func__);
+		goto err_registerAttr;
+	}
+	D("%s:OK\n", __func__);
+	debug_flag = 0;
+	printk("mog bma250 probe end\n");
+	return 0;
+
+err_registerAttr:
+exit_misc_device_register_failed:
+exit_init_failed:
+exit_wrong_ID:
+exit_platform_data_null:
+	kfree(bma);
+exit_alloc_data_failed:
+exit_check_functionality_failed:
+	return err;
+}
+
+static int bma250_remove(struct i2c_client *client)
+{
+	struct bma250_data *bma = i2c_get_clientdata(client);
+	kfree(bma);
+	return 0;
+}
+
+static const struct i2c_device_id bma250_id[] = {
+	{ BMA250_I2C_NAME, 0 },
+	{ }
+};
+
+static struct i2c_driver bma250_driver = {
+	.probe = bma250_probe,
+	.remove = bma250_remove,
+	.id_table	= bma250_id,
+
+#ifndef EARLY_SUSPEND_BMA
+	.suspend = bma250_suspend,
+	.resume = bma250_resume,
+#endif
+	.driver = {
+		   .name = BMA250_I2C_NAME,
+		   },
+};
+
+static int __init bma250_init(void)
+{
+	printk(KERN_INFO "BMA250 G-sensor driver: init\n");
+	return i2c_add_driver(&bma250_driver);
+}
+
+static void __exit bma250_exit(void)
+{
+	i2c_del_driver(&bma250_driver);
+}
+
+module_init(bma250_init);
+module_exit(bma250_exit);
+
+MODULE_DESCRIPTION("BMA250 G-sensor driver");
+MODULE_LICENSE("GPL");
+
