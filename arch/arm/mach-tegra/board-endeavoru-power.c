@@ -513,7 +513,7 @@ FIXED_REG(0, led_3v3_en, NULL, ENT_TPS80031_GPIO_REGEN2, true, 3300, 1, 0);
 FIXED_REG(1, aud_a1v8_en, NULL, TEGRA_GPIO_PD2, true, 1800, 1, 0);
 FIXED_REG(2, vib_3v_en, NULL, TEGRA_GPIO_PE7, true, 3000, 0, 0);
 FIXED_REG(3, mhl_3v3_en, "tps80031_LDOUSB", TEGRA_GPIO_PY2, true, 3300, 0, 0);
-FIXED_REG(4, aud_3v3_en,  NULL, TEGRA_GPIO_PB2, true, 3300, 0, 0);
+FIXED_REG(4, aud_3v3_en,  NULL, TEGRA_GPIO_PB2, true, 3300, 1, 0);
 FIXED_REG(5, cam_vcm_2v85_en,  NULL, TEGRA_GPIO_PM7, true, 2800, 0, 0);
 FIXED_REG(6, lcm_3v3_en,  NULL, TEGRA_GPIO_PE2, true, 3000, 1, 0);
 FIXED_REG(7, lcmio_1v8_en,  "tps80031_VIO", TEGRA_GPIO_PE5, true, 1800, 1, 0);
