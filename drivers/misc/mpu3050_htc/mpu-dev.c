@@ -81,7 +81,7 @@ static struct i2c_client *this_client;
 
 int mpu_debug_flag;
 int mpu_sensors_reset;
-
+#ifndef CONFIG_MACH_ENDEAVORU
 int GSensorReadData(short *rbuf)
 
 {
@@ -215,7 +215,7 @@ int GSensor_set_mode(unsigned char mode){
 	//waiting for implement
 	return 0;
 }
-
+#endif
 
 static int mpu_open(struct inode *inode, struct file *file)
 {
