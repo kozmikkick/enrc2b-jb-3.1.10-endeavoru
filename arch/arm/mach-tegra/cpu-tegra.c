@@ -2122,7 +2122,7 @@ struct early_suspend tegra_cpufreq_performance_early_suspender;
 static struct pm_qos_request_list boost_cpu_freq_req;
 static struct pm_qos_request_list cap_cpu_freq_req;
 #ifdef CONFIG_TEGRA_CPU_AP33
-#define BOOST_CPU_FREQ_MIN 1500000
+#define BOOST_CPU_FREQ_MIN 1550000
 #else
 #define BOOST_CPU_FREQ_MIN 1700000
 #endif
@@ -2131,7 +2131,7 @@ static struct pm_qos_request_list cap_cpu_freq_req;
 static int enter_early_suspend = 0;
 static int perf_early_suspend = 0;
 #ifdef CONFIG_TEGRA_CPU_AP33
-static int CAP_CPU_FREQ_TARGET = 1500000;
+static int CAP_CPU_FREQ_TARGET = 1550000;
 #else
 static int CAP_CPU_FREQ_TARGET = 1700000;
 #endif
@@ -2267,7 +2267,7 @@ static int tegra_cpufreq_resume(struct cpufreq_policy *policy)
 	/*if it's a power key wakeup, uncap the cpu powersave mode for future boost*/
 	if (wake_reason_resume == 0x80)
 #ifdef CONFIG_TEGRA_CPU_AP33
-		policy->max = 1500000;
+		policy->max = 1550000;
 #else
 		policy->max = 1700000;
 #endif
