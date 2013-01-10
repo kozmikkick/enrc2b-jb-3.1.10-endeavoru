@@ -240,7 +240,7 @@ struct pe_tbl {
     },
     [__SPEED_1500_MHZ__] =
     {
-        .speed = 1500000,
+        .speed = 1550000,
         .lv_link = { .prev = _POWER_ENTRY(1400), .next = NULL },
         .pwrref = { 398, P(NOT_USED), P(NOT_USED), P(NOT_USED) }
     },
@@ -302,7 +302,7 @@ struct pe_tbl {
     },
     [__SPEED_1500_MHZ__] =
     {
-        .speed = 1500000,
+        .speed = 1550000,
         .lv_link = { .prev = _POWER_ENTRY(1400), .next = _POWER_ENTRY(1600) },
         .pwrref = { 368, 593, 873, 1198 }
     },

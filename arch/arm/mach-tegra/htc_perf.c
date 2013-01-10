@@ -34,8 +34,8 @@ static struct kobj_attribute attrbute##_attr = {	\
 }
 
 #ifdef CONFIG_TEGRA_CPU_AP33
-#define DEF_TARGET_FREQ (1500000)
-#define DEF_POKE_FREQ (1500000)
+#define DEF_TARGET_FREQ (1550000)
+#define DEF_POKE_FREQ (1550000)
 #else
 #define DEF_TARGET_FREQ (1700000)
 #define DEF_POKE_FREQ (1700000)
@@ -141,11 +141,11 @@ static ssize_t media_boost_freq_store(struct kobject *kobj,
 
 #ifdef CONFIG_TEGRA_CPU_AP33
 		/* update frequency qos request */
-		pm_qos_update_request(&poke_cpu_req, (s32)1500000);
+		pm_qos_update_request(&poke_cpu_req, (s32)1550000);
 
 		/* update frequency request right now */
 		cpufreq_driver_target(&policy,
-				1500000, CPUFREQ_RELATION_L);
+				1550000, CPUFREQ_RELATION_L);
 #else
 		/* update frequency qos request */
 		pm_qos_update_request(&poke_cpu_req, (s32)1700000);
