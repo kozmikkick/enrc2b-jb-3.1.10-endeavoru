@@ -4845,7 +4845,7 @@ static struct cpufreq_frequency_table freq_table_1p4GHz[] = {
 	{15, CPUFREQ_TABLE_END },
 };
 
-static struct cpufreq_frequency_table freq_table_1p5GHz[] = {
+static struct cpufreq_frequency_table freq_table_1p55GHz[] = {
 	{ 0,   51000 },
 	{ 1,  100000 },
 	{ 2,  200000 },
