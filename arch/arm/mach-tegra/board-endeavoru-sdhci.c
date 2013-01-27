@@ -36,6 +36,7 @@
 #define ENTERPRISE_WLAN_PWR	TEGRA_GPIO_PV2
 #define ENTERPRISE_WLAN_RST	TEGRA_GPIO_PV3
 #define ENTERPRISE_WLAN_WOW	TEGRA_GPIO_PO4
+#define SDIO_CLK		TEGRA_GPIO_PA6
 
 static void (*wifi_status_cb)(int card_present, void *dev_id);
 static void *wifi_status_cb_devid;
@@ -210,6 +211,19 @@ int enterprise_wifi_set_carddetect(int val)
 }
 EXPORT_SYMBOL(enterprise_wifi_set_carddetect);
 
+int enterprise_wifi_sdclk (int enable)
+{
+    printk("wifi: set sdio clk:%d\n",enable);
+
+    if(enable) {
+    	tegra_gpio_disable(SDIO_CLK);
+    }
+    else {
+	tegra_gpio_enable(SDIO_CLK);
+	gpio_direction_output(SDIO_CLK, 0);
+    }
+}
+
 int endeavor_wifi_power(int on)
 {
 	static int power_state;
@@ -220,6 +234,8 @@ int endeavor_wifi_power(int on)
 	printk("%s: Powering %s wifi\n", __func__, (on ? "on" : "off"));
 
 	power_state = on;
+	enterprise_wifi_sdclk(on);
+
 	if (on) {
 		gpio_set_value(ENTERPRISE_WLAN_PWR, 1);
 		mdelay(20);
