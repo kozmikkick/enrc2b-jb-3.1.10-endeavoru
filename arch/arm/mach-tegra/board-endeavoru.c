@@ -1432,9 +1432,9 @@ static void tegra_usb_hsic_host_unregister(struct platform_device *pdev)
 static struct android_usb_platform_data android_usb_pdata = {
 	.vendor_id	= 0x0BB4,
 #ifdef CONFIG_SENSE_4_PLUS
-	.product_id	= 0x0dfd,
+	.product_id	= 0x0DFB,
 #else
-	.product_id	= 0x0cd6,
+	.product_id	= 0x0CD9,
 #endif
 	.version	= 0x0100,
 	.product_name		= "Android Phone",
