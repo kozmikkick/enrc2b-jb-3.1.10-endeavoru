@@ -41,7 +41,7 @@ unsigned int suspended = 0;
 #define DEF_FREQUENCY_UP_THRESHOLD		(60)
 #define DEF_FREQUENCY_DOWN_THRESHOLD		(20)
 #define FREQ_STEP_DOWN 				(100000)
-#define FREQ_SLEEP_MAX 				(475000)
+#define FREQ_SLEEP_MAX 				(400000)
 #define FREQ_AWAKE_MIN 				(51000)
 #define FREQ_STEP_UP_SLEEP_PERCENT		(10)
 #define MAX_SAMPLING_RATE			(500 * def_sampling_rate)
