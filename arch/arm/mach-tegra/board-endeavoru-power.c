@@ -93,6 +93,7 @@ static struct regulator_consumer_supply tps80031_smps1_supply_common[] = {
 };
 
 static struct regulator_consumer_supply tps80031_smps2_supply_common[] = {
+	REGULATOR_SUPPLY("v_core_1v2", NULL),
 	REGULATOR_SUPPLY("vdd_core", NULL),
 };
 
@@ -166,10 +167,6 @@ static struct regulator_consumer_supply tps80031_vbus_supply_common[] = {
 	REGULATOR_SUPPLY("usb_vbus", NULL),
 };
 
-static struct regulator_consumer_supply tps80031_battery_charge_supply[] = {
-	REGULATOR_SUPPLY("usb_bat_chg", NULL),
-};
-
 #define TPS_PDATA_INIT(_id, _sname, _minmv, _maxmv, _supply_reg, _always_on,		\
 	_boot_on, _apply_uv, _init_uV, _init_enable, _init_apply,			\
 	_flags, _ectrl, _delay)								\
@@ -202,17 +199,17 @@ static struct regulator_consumer_supply tps80031_battery_charge_supply[] = {
 
 TPS_PDATA_INIT(vio, common, 600, 2100, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0);
 TPS_PDATA_INIT(smps1, common, 600, 2100, 0, 0, 0, 0, -1, 0, 0, 0, PWR_REQ_INPUT_PREQ2 | PWR_OFF_ON_SLEEP, 0);
-TPS_PDATA_INIT(smps2, common, 600, 2600, 0, 0, 0, 0, -1, 0, 0, 0, PWR_REQ_INPUT_PREQ1, 0);
+TPS_PDATA_INIT(smps2, common, 600, 2100, 0, 0, 0, 0, -1, 0, 0, 0, PWR_REQ_INPUT_PREQ1, 0);
 TPS_PDATA_INIT(smps3, common, 600, 2100, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0);
 TPS_PDATA_INIT(smps4, common, 600, 3300, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0);
 TPS_PDATA_INIT(ldo1, common, 1000, 3300, tps80031_rails(VIO), 1, 0, 0, -1, 0, 0, 0, PWR_REQ_INPUT_PREQ1, 0);
-TPS_PDATA_INIT(ldo2, common, 1000, 3300, 0, 1, 1, 1, 1200, 1, 1, 0, 0, 0);
+TPS_PDATA_INIT(ldo2, common, 1000, 3300, 0, 1, 1, 1, 1000, 1, 1, 0, 0, 0);
 TPS_PDATA_INIT(ldo3, common, 1000, 3300, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0);
-TPS_PDATA_INIT(ldo4, common, 1000, 3300, tps80031_rails(VIO), 0, 0, 0, -1, 0, 0, 0, 0, 0);
-TPS_PDATA_INIT(ldo5, common, 1000, 3300, 0, 0, 0, 0, 2850, 0, 0, 0, 0, 0);
-TPS_PDATA_INIT(ldo6, common, 1000, 3300, 0, 0, 0, 0, 2850, 0, 0, 0, 0, 0);
-TPS_PDATA_INIT(ldo7, common, 1000, 3300, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0);
-TPS_PDATA_INIT(ldoln, common, 1000, 3300, tps80031_rails(VIO), 0, 0, 0, -1, 0, 0, 0, PWR_REQ_INPUT_PREQ1, 0);
+TPS_PDATA_INIT(ldo4, common, 1000, 3300, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0);
+TPS_PDATA_INIT(ldo5, common, 1000, 3300, 0, 0, 0, 0, 2800, 0, 0, 0, 0, 0);
+TPS_PDATA_INIT(ldo6, common, 1000, 3300, 0, 0, 0, 0, 2800, 0, 0, 0, 0, 0);
+TPS_PDATA_INIT(ldo7, common, 1000, 3300, tps80031_rails(VIO), 1, 0, 0, -1, 0, 0, 0, 0, 0);
+TPS_PDATA_INIT(ldoln, common, 1000, 3300, tps80031_rails(SMPS3), 0, 0, 0, -1, 0, 0, 0, PWR_REQ_INPUT_PREQ1, 0);
 TPS_PDATA_INIT(ldousb, common, 1000, 3300, 0, 0, 0, 0, -1, 0, 0, USBLDO_INPUT_VSYS, PWR_OFF_ON_SLEEP,0);
 TPS_PDATA_INIT(vana, common,  1000, 3300, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0);
 TPS_PDATA_INIT(vbus, common,  0, 5000, 0, 0, 0, 0, -1, 0, 0, VBUS_DISCHRG_EN_PDN, 0, 100000);
@@ -364,24 +361,20 @@ static struct regulator_consumer_supply fixed_reg_led_3v3_en_supply[] = {
 	REGULATOR_SUPPLY("v_led_3v3", NULL),
 };
 
-static struct regulator_consumer_supply fixed_reg_aud_a1v8_en_supply[] = {
-        REGULATOR_SUPPLY("v_aud_a1v8", NULL),
-};
-
 static struct regulator_consumer_supply fixed_reg_vib_3v_en_supply[] = {
         REGULATOR_SUPPLY("v_vib_3v", NULL),
 };
 
-static struct regulator_consumer_supply fixed_reg_mhl_3v3_en_supply[] = {
-        REGULATOR_SUPPLY("v_tp_3v3", NULL),
+static struct regulator_consumer_supply fixed_reg_srio_1v8_en_supply[] = {
+        REGULATOR_SUPPLY("v_srio_1v8", NULL),
+};
+
+static struct regulator_consumer_supply fixed_reg_aud_a1v8_en_supply[] = {
+        REGULATOR_SUPPLY("v_aud_a1v8", NULL),
 };
 
 static struct regulator_consumer_supply fixed_reg_aud_3v3_en_supply[] = {
         REGULATOR_SUPPLY("v_aud_3v3", NULL),
-};
-
-static struct regulator_consumer_supply fixed_reg_cam_vcm_2v85_en_supply[] = {
-        REGULATOR_SUPPLY("v_cam_vcm_2v85", NULL),
 };
 
 static struct regulator_consumer_supply fixed_reg_lcmio_1v8_en_supply[] = {
@@ -392,8 +385,16 @@ static struct regulator_consumer_supply fixed_reg_lcm_3v3_en_supply[] = {
         REGULATOR_SUPPLY("v_lcm_3v3", NULL),
 };
 
-static struct regulator_consumer_supply fixed_reg_srio_1v8_en_supply[] = {
-        REGULATOR_SUPPLY("v_srio_1v8", NULL),
+static struct regulator_consumer_supply fixed_reg_mhl_3v3_en_supply[] = {
+        REGULATOR_SUPPLY("v_tp_3v3", NULL),
+};
+
+static struct regulator_consumer_supply fixed_reg_mhl_1v2_en_supply[] = {
+        REGULATOR_SUPPLY("v_mhl_1v2", NULL),
+};
+
+static struct regulator_consumer_supply fixed_reg_cam_vcm_2v85_en_supply[] = {
+        REGULATOR_SUPPLY("v_cam_vcm_2v85", NULL),
 };
 
 static struct regulator_consumer_supply fixed_reg_cam2_d1v2_en_supply[] = {
@@ -412,21 +413,9 @@ static struct regulator_consumer_supply fixed_reg_cam_a2v85_en_supply[] = {
         REGULATOR_SUPPLY("v_cam_a2v85", NULL),
 };
 
-static struct regulator_consumer_supply fixed_reg_mhl_1v2_en_supply[] = {
-        REGULATOR_SUPPLY("v_mhl_1v2", NULL),
-};
-
-static struct regulator_consumer_supply fixed_reg_fuse_src_3v3_en_supply[] = {
-        REGULATOR_SUPPLY("v_fuse_src_3v3", NULL),
-};
-
-static struct regulator_consumer_supply fixed_reg_ps_2v85_en_supply[] = {
+static struct regulator_consumer_supply fixed_reg_sdmmc_2v85_en_supply[] = {
         REGULATOR_SUPPLY("v_ps_2v85", NULL),
 };
-
-//static struct regulator_consumer_supply fixed_reg_raw_1v8_en_supply[] = {
-//        REGULATOR_SUPPLY("v_raw_1v8", NULL),
-//};
 
 /* Macro for defining gpio regulator device data */
 /* NOTE: GPIO_REG is unused here; assume all regulators fixed */
@@ -510,42 +499,39 @@ static struct regulator_consumer_supply fixed_reg_ps_2v85_en_supply[] = {
 			_init_state, _pg, _enable, _disable)
 
 FIXED_REG(0, led_3v3_en, NULL, ENT_TPS80031_GPIO_REGEN2, true, 3300, 1, 0);
-FIXED_REG(1, aud_a1v8_en, NULL, TEGRA_GPIO_PD2, true, 1800, 1, 0);
-FIXED_REG(2, vib_3v_en, NULL, TEGRA_GPIO_PE7, true, 3000, 0, 0);
-FIXED_REG(3, mhl_3v3_en, "tps80031_LDOUSB", TEGRA_GPIO_PY2, true, 3300, 0, 0);
+FIXED_REG(1, vib_3v_en, NULL, TEGRA_GPIO_PE7, true, 3000, 0, 0);
+FIXED_REG(2, srio_1v8_en,  "tps80031_VIO", TEGRA_GPIO_PY3, true, 1800, 1, 0);
+FIXED_REG(3, aud_a1v8_en, NULL, TEGRA_GPIO_PD2, true, 1800, 1, 0);
 FIXED_REG(4, aud_3v3_en,  NULL, TEGRA_GPIO_PB2, true, 3300, 1, 0);
-FIXED_REG(5, cam_vcm_2v85_en,  NULL, TEGRA_GPIO_PM7, true, 2800, 0, 0);
-FIXED_REG(6, lcm_3v3_en,  NULL, TEGRA_GPIO_PE2, true, 3000, 1, 0);
-FIXED_REG(7, lcmio_1v8_en,  "tps80031_VIO", TEGRA_GPIO_PE5, true, 1800, 1, 0);
-FIXED_REG(8, srio_1v8_en,  "tps80031_VIO", TEGRA_GPIO_PY3, true, 1800, 1, 0);
-FIXED_REG(9, cam2_d1v2_en,  NULL, TEGRA_GPIO_PF6, true, 1200, 0, 0);
-FIXED_REG(10, cam_d1v2_en,  NULL, TEGRA_GPIO_PF5, true, 1200, 0, 0);
-FIXED_REG(11, camio_1v8_en, NULL, TEGRA_GPIO_PBB4, true, 1800, 0, 0);
-FIXED_REG(12, cam_a2v85_en,  NULL, TEGRA_GPIO_PE3, true, 2800, 0, 0);
-FIXED_REG(13, mhl_1v2_en,  NULL, TEGRA_GPIO_PE4, true, 1200, 0, 0);
-FIXED_REG(14, ps_2v85_en,    NULL, TEGRA_GPIO_PM3,  true, 2850, 1, 0);
-FIXED_REG(15, fuse_src_3v3_en, NULL, TEGRA_GPIO_PM0,  true, 3300, 0, 0);
-//FIXED_REG(16, raw_1v8_en,    "tps80031_LDO7", TEGRA_GPIO_PR3,  true, 1800, 0, 0);
+FIXED_REG(5, lcmio_1v8_en,  "tps80031_VIO", TEGRA_GPIO_PE5, true, 1800, 1, 0);
+FIXED_REG(6, lcm_3v3_en,  NULL, TEGRA_GPIO_PE2, true, 3300, 1, 0);
+FIXED_REG(7, mhl_3v3_en, NULL, TEGRA_GPIO_PY2, true, 3300, 0, 0);
+FIXED_REG(8, mhl_1v2_en,  NULL, TEGRA_GPIO_PE4, true, 1200, 0, 0);
+FIXED_REG(9, cam_vcm_2v85_en,  NULL, TEGRA_GPIO_PM7, true, 2850, 0, 0);
+FIXED_REG(10, cam2_d1v2_en,  NULL, TEGRA_GPIO_PF6, true, 1200, 0, 0);
+FIXED_REG(11, cam_d1v2_en,  NULL, TEGRA_GPIO_PF5, true, 1200, 0, 0);
+FIXED_REG(12, camio_1v8_en, NULL, TEGRA_GPIO_PBB4, true, 1800, 0, 0);
+FIXED_REG(13, cam_a2v85_en,  NULL, TEGRA_GPIO_PE3, true, 2850, 0, 0);
+FIXED_REG(14, sdmmc_2v85_en,    NULL, TEGRA_GPIO_PM3,  true, 2850, 1, 0);
 
 #define ADD_FIXED_REG(_name)	(&fixed_reg_##_name##_dev)
 
 #define FIXED_REGS_COMMON		\
 	ADD_FIXED_REG(led_3v3_en),	\
-	ADD_FIXED_REG(aud_a1v8_en),	\
 	ADD_FIXED_REG(vib_3v_en),	\
-	ADD_FIXED_REG(mhl_3v3_en),	\
-	ADD_FIXED_REG(aud_3v3_en),	\
-	ADD_FIXED_REG(cam_vcm_2v85_en),	\
-	ADD_FIXED_REG(lcm_3v3_en),	\
-	ADD_FIXED_REG(lcmio_1v8_en),	\
 	ADD_FIXED_REG(srio_1v8_en),	\
+	ADD_FIXED_REG(aud_a1v8_en),	\
+	ADD_FIXED_REG(aud_3v3_en),	\
+	ADD_FIXED_REG(lcmio_1v8_en),	\
+	ADD_FIXED_REG(lcm_3v3_en),	\
+	ADD_FIXED_REG(mhl_3v3_en),	\
+	ADD_FIXED_REG(mhl_1v2_en),	\
+	ADD_FIXED_REG(cam_vcm_2v85_en),	\
 	ADD_FIXED_REG(cam2_d1v2_en),	\
 	ADD_FIXED_REG(cam_d1v2_en),	\
 	ADD_FIXED_REG(camio_1v8_en),	\
 	ADD_FIXED_REG(cam_a2v85_en),	\
-	ADD_FIXED_REG(mhl_1v2_en),	\
-	ADD_FIXED_REG(ps_2v85_en),	\
-	ADD_FIXED_REG(fuse_src_3v3_en)	\
+	ADD_FIXED_REG(sdmmc_2v85_en)
 
 static struct platform_device *gswitch_subdevs[] = {
 	FIXED_REGS_COMMON,
@@ -736,9 +722,9 @@ int __init enterprise_edp_init(void)
 	unsigned int regulator_mA;
 
 	regulator_mA = get_maximum_cpu_current_supported();
-	if (!regulator_mA) {
-		regulator_mA = 5000; /* regular AP33H is 5000 */
-	}
+	// if (!regulator_mA) {
+		regulator_mA = 5000; /* regular AP33H */
+	// }
 	pr_info("%s: CPU regulator %d mA\n", __func__, regulator_mA);
 
 	tegra_init_cpu_edp_limits(regulator_mA);
