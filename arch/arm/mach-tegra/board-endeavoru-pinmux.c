@@ -86,10 +86,10 @@ static __initdata struct tegra_drive_pingroup_config endeavoru_drive_pinmux[] = 
 #ifdef CONFIG_TRIPNDROID_PINMUX
 	SET_DRIVE(DAP2, 	DISABLE, ENABLE, DIV_1, 31, 31, FASTEST, FASTEST),
 	SET_DRIVE(SPI, 	        DISABLE, ENABLE, DIV_1, 31, 31, FASTEST, FASTEST),
-#endif
 
 	/* UART3 */
 	SET_DRIVE(UART3,	DISABLE, ENABLE, DIV_1, 31, 31, FASTEST, FASTEST),
+#endif
 };
 
 #define DEFAULT_PINMUX(_pingroup, _mux, _pupd, _tri, _io)	\
@@ -225,6 +225,7 @@ static __initdata struct tegra_pingroup_config endeavoru_pinmux_common[] = {
 #endif
 	DEFAULT_PINMUX(GPIO_PCC1,       I2S4,            NORMAL,       NORMAL,     INPUT), // CAM_SEL
 	DEFAULT_PINMUX(GPIO_PCC2,       RSVD2,           PULL_UP,      NORMAL,     INPUT), // PWR_THEMP_ALERT_INT
+#ifdef CONFIG_TRIPNDROID_PINMUX
 	/* IN TripNRaVeR */
 	DEFAULT_PINMUX(GMI_AD0,         GMI,             NORMAL,       TRISTATE,   OUTPUT),
 	DEFAULT_PINMUX(GMI_AD1,         GMI,             NORMAL,       TRISTATE,   OUTPUT),
@@ -235,32 +236,75 @@ static __initdata struct tegra_pingroup_config endeavoru_pinmux_common[] = {
 	DEFAULT_PINMUX(GMI_AD6,         GMI,             NORMAL,       TRISTATE,   OUTPUT),
 	DEFAULT_PINMUX(GMI_AD7,         GMI,             NORMAL,       TRISTATE,   OUTPUT),
 	/* OUT TripNRaVeR: 8x GMI */
+#endif
+#ifdef CONFIG_HTC_PINMUX
+	DEFAULT_PINMUX(GMI_AD0,         RSVD,            NORMAL,       TRISTATE,   OUTPUT),
+	DEFAULT_PINMUX(GMI_AD1,         RSVD,            NORMAL,       TRISTATE,   OUTPUT),
+	DEFAULT_PINMUX(GMI_AD2,         RSVD,            NORMAL,       TRISTATE,   OUTPUT),
+	DEFAULT_PINMUX(GMI_AD3,         RSVD,            NORMAL,       TRISTATE,   OUTPUT),
+	DEFAULT_PINMUX(GMI_AD4,         RSVD,            NORMAL,       TRISTATE,   OUTPUT),
+	DEFAULT_PINMUX(GMI_AD5,         RSVD,            NORMAL,       TRISTATE,   OUTPUT),
+	DEFAULT_PINMUX(GMI_AD6,         RSVD,            NORMAL,       TRISTATE,   OUTPUT),
+	DEFAULT_PINMUX(GMI_AD7,         RSVD,            NORMAL,       TRISTATE,   OUTPUT),
+#endif
 	DEFAULT_PINMUX(GMI_AD8,         PWM0,            NORMAL,       NORMAL ,    OUTPUT), // HAPTIC_PWM_XC
+#ifdef CONFIG_TRIPNDROID_PINMUX
 	DEFAULT_PINMUX(GMI_AD9,         NAND,            NORMAL,       NORMAL,     OUTPUT),
+#endif
+#ifdef CONFIG_HTC_PINMUX
+	DEFAULT_PINMUX(GMI_AD9,         RSVD,            NORMAL,       NORMAL,     OUTPUT),
+#endif
+
 	DEFAULT_PINMUX(GMI_AD10,        NAND,            NORMAL,       NORMAL,     OUTPUT),
+#ifdef CONFIG_TRIPNDROID_PINMUX
 	DEFAULT_PINMUX(GMI_AD11,        GMI,             PULL_DOWN,    TRISTATE,   OUTPUT),
 	DEFAULT_PINMUX(GMI_AD12,        NAND,            NORMAL,       TRISTATE,   INPUT),
 	/* 
 	DEFAULT_PINMUX(GMI_AD13,        RSVD2,           NORMAL,       NORMAL,     INPUT), // TripNRaVeR: removed
 	*/
 	DEFAULT_PINMUX(GMI_AD14,        RSVD2,           NORMAL,       NORMAL,     INPUT), // DSP_TP_RST
+#endif
+#ifdef CONFIG_HTC_PINMUX
+	DEFAULT_PINMUX(GMI_AD11,        RSVD,            NORMAL,       NORMAL,     INPUT),
+	DEFAULT_PINMUX(GMI_AD12,        RSVD,            NORMAL,       NORMAL,     INPUT),
+	DEFAULT_PINMUX(GMI_AD13,        RSVD,            NORMAL,       NORMAL,     INPUT),
+	DEFAULT_PINMUX(GMI_AD14,        RSVD,            NORMAL,       NORMAL,     INPUT), // DSP_TP_RST
+#endif
 	DEFAULT_PINMUX(GMI_AD15,        NAND,            PULL_UP,      TRISTATE,   INPUT),
-
+#ifdef CONFIG_TRIPNDROID_PINMUX
 	DEFAULT_PINMUX(GMI_DQS,         RSVD3,           PULL_DOWN,    TRISTATE,   OUTPUT), // TripNRaVeR: patched
 	DEFAULT_PINMUX(GMI_CLK,         GMI,             NORMAL,       TRISTATE,   OUTPUT), // TripNRaVeR: patched
+#endif
+#ifdef CONFIG_HTC_PINMUX
+	DEFAULT_PINMUX(GMI_DQS,         RSVD,            NORMAL,       NORMAL,     INPUT), // TripNRaVeR: patched
+	DEFAULT_PINMUX(GMI_CLK,         RSVD,            NORMAL,       NORMAL,     INPUT), // TripNRaVeR: patched
+#endif
 	DEFAULT_PINMUX(GMI_CS1_N,       RSVD1,           PULL_DOWN,    NORMAL,     INPUT), // PEH_COMP_INT
+#ifdef CONFIG_TRIPNDROID_PINMUX
 	DEFAULT_PINMUX(GMI_CS2_N,       RSVD2,           NORMAL,       NORMAL,     INPUT), // NC
 	DEFAULT_PINMUX(GMI_CS3_N,       RSVD1,           NORMAL,       NORMAL,     INPUT), // NC
 	DEFAULT_PINMUX(GMI_CS4_N,       RSVD2,           PULL_UP,      NORMAL,     INPUT), // PER_PS_INT
+#endif
+#ifdef CONFIG_HTC_PINMUX
+	DEFAULT_PINMUX(GMI_CS2_N,       RSVD,            NORMAL,       NORMAL,     INPUT), // NC
+	DEFAULT_PINMUX(GMI_CS3_N,       RSVD,            NORMAL,       NORMAL,     INPUT), // NC
+	DEFAULT_PINMUX(GMI_CS4_N,       RSVD,            PULL_UP,      NORMAL,     INPUT), // PER_PS_INT
+#endif
 	DEFAULT_PINMUX(GMI_CS6_N,       GMI,             NORMAL,       NORMAL,     INPUT), // NC
 	DEFAULT_PINMUX(GMI_CS7_N,       GMI_ALT,         PULL_UP,      NORMAL,     INPUT), // PEH_GYR_INT
 	DEFAULT_PINMUX(GMI_RST_N,       RSVD3,           PULL_UP,      TRISTATE,   INPUT), // NC
 	DEFAULT_PINMUX(GMI_WAIT,        RSVD2,           NORMAL,       NORMAL,     INPUT), // NC
 	DEFAULT_PINMUX(GMI_WP_N,        RSVD1,           PULL_UP,      NORMAL,     INPUT), // MHL_INT
+#ifdef CONFIG_TRIPNDROID_PINMUX
 	DEFAULT_PINMUX(GMI_WR_N,        RSVD3,           NORMAL,       NORMAL,     INPUT), // external pull high
 	DEFAULT_PINMUX(GMI_OE_N,        RSVD3,           NORMAL,       NORMAL,     INPUT), // external pull high
 	DEFAULT_PINMUX(GMI_ADV_N,       RSVD2,           NORMAL,       NORMAL,     INPUT), // external pull down
-
+#endif
+#ifdef CONFIG_HTC_PINMUX
+	DEFAULT_PINMUX(GMI_WR_N,        RSVD,            NORMAL,       NORMAL,     INPUT), // external pull high
+	DEFAULT_PINMUX(GMI_OE_N,        RSVD,            NORMAL,       NORMAL,     INPUT), // external pull high
+	DEFAULT_PINMUX(GMI_ADV_N,       RSVD,            NORMAL,       NORMAL,     INPUT), // external pull down
+#endif
 	DEFAULT_PINMUX(LCD_CS0_N,       RSVD,            NORMAL,       NORMAL,     INPUT), // NC
 	DEFAULT_PINMUX(LCD_CS1_N,       RSVD2,           PULL_UP,      NORMAL,     INPUT), // PWR_CHG_STAT
 	DEFAULT_PINMUX(LCD_D0,          DISPLAYA,        NORMAL,       NORMAL,     OUTPUT), // MHL_USB_SEL
@@ -271,14 +315,25 @@ static __initdata struct tegra_pingroup_config endeavoru_pinmux_common[] = {
 	DEFAULT_PINMUX(LCD_D5,          DISPLAYA,        NORMAL,       NORMAL,     INPUT), // DSP_LCM_1V8_EN
 	DEFAULT_PINMUX(LCD_D6,          RSVD1,           NORMAL,       NORMAL,     INPUT), // MHL_RST
 	DEFAULT_PINMUX(LCD_D7,          DISPLAYA,        NORMAL,       NORMAL,     INPUT), // PEH_VIBRATOR_ON
+#ifdef CONFIG_TRIPNDROID_PINMUX
 	DEFAULT_PINMUX(LCD_D8,          RSVD2,           PULL_DOWN,    NORMAL,     INPUT), // CAM_VCM_2V85_PWR
+#endif
+#ifdef CONFIG_HTC_PINMUX
+	DEFAULT_PINMUX(LCD_D8,          RSVD,            PULL_DOWN,    NORMAL,     INPUT), // CAM_VCM_2V85_PWR
+#endif
 	DEFAULT_PINMUX(LCD_D9,          DISPLAYA,        NORMAL,       NORMAL,     INPUT), //
 	DEFAULT_PINMUX(LCD_D10,         DISPLAYA,        NORMAL,       NORMAL,     INPUT), // NC
 	DEFAULT_PINMUX(LCD_D11,         DISPLAYA,        NORMAL,       NORMAL,     INPUT), // NC
 	DEFAULT_PINMUX(LCD_D12,         DISPLAYA,        NORMAL,       NORMAL,     INPUT), // NC
 	DEFAULT_PINMUX(LCD_D13,         DISPLAYA,        NORMAL,       NORMAL,     INPUT), // NC
+#ifdef CONFIG_TRIPNDROID_PINMUX
 	DEFAULT_PINMUX(LCD_D14,         DISPLAYA,        NORMAL,       NORMAL,     INPUT), // CAM_CAM2_CORE_1V8_EN
 	DEFAULT_PINMUX(LCD_D15,         RSVD2,	         NORMAL,       NORMAL,     OUTPUT), // SYS_PMU_MSECURE
+#endif
+#ifdef CONFIG_HTC_PINMUX
+	DEFAULT_PINMUX(LCD_D14,         RSVD,            NORMAL,       NORMAL,     INPUT), // CAM_CAM2_CORE_1V8_EN
+	DEFAULT_PINMUX(LCD_D15,         RSVD,	         NORMAL,       NORMAL,     OUTPUT), // SYS_PMU_MSECURE
+#endif
 	DEFAULT_PINMUX(LCD_D16,         DISPLAYA,        NORMAL,       NORMAL,     INPUT), // DSP_LCD_ID0
 	DEFAULT_PINMUX(LCD_D17,         DISPLAYA,        NORMAL,       NORMAL,     INPUT), // DSP_LCD_ID1
 	DEFAULT_PINMUX(LCD_D18,         DISPLAYA,        NORMAL,       NORMAL,     INPUT), // CAM_FRONT_CAM_RST
@@ -316,9 +371,16 @@ static __initdata struct tegra_pingroup_config endeavoru_pinmux_common[] = {
 
 	DEFAULT_PINMUX(KB_ROW0,         RSVD3,           NORMAL,       TRISTATE,   INPUT), // RAW_INTR0 (input only)
 	DEFAULT_PINMUX(KB_ROW1,         KBC,             NORMAL,       NORMAL,     OUTPUT), // PER_TORCH_EN
+#ifdef CONFIG_TRIPNDROID_PINMUX
 	DEFAULT_PINMUX(KB_ROW2,         RSVD3,           NORMAL,       NORMAL,     OUTPUT), // GYRO SLEEP
 	DEFAULT_PINMUX(KB_ROW3,         RSVD2,           NORMAL,       NORMAL,     INPUT), // RAW_1V8_EN
 	DEFAULT_PINMUX(KB_ROW4,         RSVD3,           NORMAL,       NORMAL,     INPUT), // RAW_RSTN
+#endif
+#ifdef CONFIG_HTC_PINMUX
+	DEFAULT_PINMUX(KB_ROW2,         RSVD,            NORMAL,       NORMAL,     OUTPUT), // GYRO SLEEP
+	DEFAULT_PINMUX(KB_ROW3,         RSVD,            NORMAL,       NORMAL,     INPUT), // RAW_1V8_EN
+	DEFAULT_PINMUX(KB_ROW4,         RSVD,            NORMAL,       NORMAL,     INPUT), // RAW_RSTN
+#endif
 	DEFAULT_PINMUX(KB_ROW5,         KBC,             NORMAL,       NORMAL,     INPUT), // NC
 	DEFAULT_PINMUX(KB_ROW6,         KBC,             NORMAL,       TRISTATE,   INPUT), // CAM_CAM1_ID
 	DEFAULT_PINMUX(KB_ROW7,         KBC,             NORMAL,       TRISTATE,   INPUT), // CAM_FRONT_CAM_ID
@@ -371,9 +433,14 @@ static __initdata struct tegra_pingroup_config endeavoru_pinmux_common[] = {
 	DEFAULT_PINMUX(DAP3_SCLK,       I2S2,            NORMAL,       NORMAL,     INPUT),
 	DEFAULT_PINMUX(DAP4_FS,         I2S3,            NORMAL,       NORMAL,     INPUT), // AUD_BTPCM_SYNC // TripNRaVeR: patched
 	DEFAULT_PINMUX(DAP4_DIN,        I2S3,            NORMAL,       NORMAL,     INPUT), // AUD_BTPCM_DOUT // TripNRaVeR: patched
+#ifdef CONFIG_TRIPNDROID_PINMUX
 	DEFAULT_PINMUX(DAP4_DOUT,       I2S3,            NORMAL,       NORMAL,     OUTPUT), // AUD_SPK_EN
 	DEFAULT_PINMUX(DAP4_SCLK,       I2S3,            NORMAL,       NORMAL,     OUTPUT), // AUD_LINEOUT_EN
-
+#endif
+#ifdef CONFIG_HTC_PINMUX
+	DEFAULT_PINMUX(DAP4_DOUT,       RSVD,            NORMAL,       NORMAL,     OUTPUT), // AUD_SPK_EN
+	DEFAULT_PINMUX(DAP4_SCLK,       RSVD,            NORMAL,       NORMAL,     OUTPUT), // AUD_LINEOUT_EN
+#endif
 	DEFAULT_PINMUX(CLK_32K_OUT,     BLINK,           NORMAL,       NORMAL,     OUTPUT), // NC
 	DEFAULT_PINMUX(CLK1_OUT,        RSVD3,           NORMAL,       NORMAL,     INPUT), // AUD_MCLK
 	DEFAULT_PINMUX(CLK2_OUT,        RSVD3,           NORMAL,       NORMAL,     INPUT), // AUD_AIC3008_RST
