@@ -391,6 +391,17 @@ config TEGRA_FIQ_DEBUGGER
 	help
 	  Enables the FIQ serial debugger on Tegra
 
+choice
+        prompt "Pinmux configuration"
+        default HTC_PINMUX
+
+config HTC_PINMUX
+        bool "HTC Pinmux configuration"
+
+config TRIPNDROID_PINMUX
+        bool "TripNDroid Pinmux configuration"
+endchoice
+
 config TEGRA_P1852_TDM
 	bool "Enable TDM mode for P1852 SKUs"
 	default n
