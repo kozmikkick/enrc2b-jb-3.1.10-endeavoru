@@ -1,15 +1,39 @@
-rm -fR ./bootimg.out
-mkdir bootimg.out
-mkdir -p ./ramdisk/system/lib/modules
-cd structure.new
-cp -fR ./*  ../ramdisk
-cd ../ramdisk
-find . | cpio -o -H newc | gzip > ../newramdisk.cpio.gz
+# compile the kernel
 cd ..
-./tools/mkbootimg --kernel ./zImage.new/zImage --ramdisk ./newramdisk.cpio.gz --pagesize 2048 -o ./bootimg.out/boot.img
+export CROSS_COMPILE=arm-eabi- ARCH=arm SUBARM=arm
+make -j4 tripndroid_endeavoru_defconfig
 
-rm -fR ./ramdisk
-rm -fR ./boot.img-kernel
-rm -fR ./boot.img-ramdisk.gz
-rm -fR ./newramdisk.cpio.gz
+# copy modules
+find arch -type f -name '*.ko' -exec cp -f {} Build/TripNDroid/system/lib/modules \;
+find crypto -type f -name '*.ko' -exec cp -f {} Build/TripNDroid/system/lib/modules \;
+find drivers -type f -name '*.ko' -exec cp -f {} Build/TripNDroid/system/lib/modules \;
+find fs -type f -name '*.ko' -exec cp -f {} Build/TripNDroid/system/lib/modules \;
+find ipc -type f -name '*.ko' -exec cp -f {} Build/TripNDroid/system/lib/modules \;
+find net -type f -name '*.ko' -exec cp -f {} Build/TripNDroid/system/lib/modules \;
+
+# copy zImage
+cp -f arch/arm/boot/zImage Build/Working/zImage
+
+# compile ramdisk
+cd Build
+cd ramdisk
+find . | cpio -o -H newc | gzip > ../Working/ramdisk.cpio.gz
+
+# compile boot.img
+cd ..
+./tools/mkbootimg --kernel ./Working/zImage --ramdisk ./Working/ramdisk.cpio.gz --pagesize 2048 -o ./Working/boot.img
+cp ./Working/boot.img ./TripNDroid/boot.img
+
+# compile install zip
+cd TripNDroid
+zip -r ./TripNDroid.zip ./META-INF ./system boot.img
+
+# cleaning up
+cd ..
+rm -fR ./Working/ramdisk.cpio.gz
+rm -fR ./Working/boot.img
+rm -fR ./Working/zImage
+rm -fR ./TripNDroid/boot.img
+rm -fR ./TripNDroid/system/lib/modules
+mkdir ./TripNDroid/system/lib/modules
 
